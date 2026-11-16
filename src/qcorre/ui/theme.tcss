@@ -102,13 +102,13 @@ Panel:focus, Panel:focus-within {
 
 /* ── Diálogos (confirmación y detalle) ────────────────────── */
 
-ConfirmScreen, InfoScreen {
+ConfirmScreen, InfoScreen, PromptScreen {
     align: center middle;
     background: $background 75%;
 }
 
 #dialog {
-    width: 68;
+    width: 78;
     max-width: 90%;
     height: auto;
     max-height: 85%;
@@ -137,6 +137,22 @@ InfoScreen #dialog {
 #dialog-keys {
     height: 1;
     margin-top: 1;
+}
+
+#dialog-prompt {
+    height: 1;
+}
+
+#dialog-input {
+    margin: 0 0 1 0;
+    border: round $qc-border;
+    background: $background;
+    padding: 0 1;
+    height: 3;
+}
+
+#dialog-input:focus {
+    border: round $primary;
 }
 
 /* ── Avisos (toasts) ──────────────────────────────────────── */

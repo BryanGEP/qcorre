@@ -6,13 +6,15 @@ de git. Devuelve ``True`` si el usuario confirma y ``False`` si cancela.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from rich.console import RenderableType
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
-from textual.widgets import Static
+from textual.widgets import Input, Static
 
 from qcorre.i18n import t
 from qcorre.ui import theme
@@ -95,4 +97,67 @@ class InfoScreen(ModalScreen[None]):
         self.query_one("#dialog").border_title = self.dialog_title
 
     def action_close(self) -> None:
+        self.dismiss(None)
+
+
+class PromptScreen(ModalScreen[str | None]):
+    """Pide un texto (el mensaje del commit) con la vista previa debajo.
+
+    ``preview`` recibe lo escrito hasta el momento y devuelve el cuerpo del
+    diálogo: así el comando exacto se actualiza mientras se teclea. Enter
+    confirma (solo si hay texto) y Esc cancela.
+    """
+
+    BINDINGS = [Binding("escape", "cancel", show=False)]
+
+    def __init__(
+        self,
+        title: str,
+        prompt: str,
+        preview: Callable[[str], RenderableType],
+        *,
+        placeholder: str = "",
+        confirm_key: str = "confirm.accept",
+        empty_key: str = "confirm.accept",
+    ) -> None:
+        super().__init__()
+        self.dialog_title = title
+        self.prompt = prompt
+        self.preview = preview
+        self.placeholder = placeholder
+        self.confirm_key = confirm_key
+        self.empty_key = empty_key
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="dialog"):
+            yield Static(Text(self.prompt, style=f"bold {theme.FOREGROUND}"), id="dialog-prompt")
+            yield Input(placeholder=self.placeholder, id="dialog-input")
+            with VerticalScroll(id="dialog-body"):
+                yield Static(self.preview(""), id="dialog-preview")
+            yield Static(self._keys(), id="dialog-keys")
+
+    def on_mount(self) -> None:
+        self.query_one("#dialog").border_title = self.dialog_title
+        self.query_one(Input).focus()
+
+    def _keys(self) -> Text:
+        line = Text(justify="right")
+        line.append("enter", style=f"bold {theme.ACCENT}")
+        line.append(" " + t(self.confirm_key), style=theme.FOREGROUND)
+        line.append("     ")
+        line.append("esc", style=f"bold {theme.ACCENT}")
+        line.append(" " + t("confirm.cancel"), style=theme.MUTED)
+        return line
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        self.query_one("#dialog-preview", Static).update(self.preview(event.value))
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        value = event.value.strip()
+        if value:
+            self.dismiss(value)
+        else:
+            self.app.notify(t(self.empty_key), severity="warning")
+
+    def action_cancel(self) -> None:
         self.dismiss(None)

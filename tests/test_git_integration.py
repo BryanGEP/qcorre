@@ -79,7 +79,7 @@ def test_repo_recien_creado_sin_commits(tmp_path):
     assert not status.has_commits
     assert status.is_clean
     assert status.remotes == ()
-    assert status.last_fetch is None
+    assert status.last_sync is None
 
 
 def test_repo_limpio_sin_remoto(repo):
@@ -143,7 +143,7 @@ def test_commits_sin_bajar_y_ramas_separadas(tmp_path, repo, remote):
     git(repo, "fetch", "-q")
     status = read_status(repo)
     assert (status.ahead, status.behind) == (0, 1)
-    assert status.last_fetch is not None and status.last_fetch >= before - 5
+    assert status.last_sync is not None and status.last_sync >= before - 5
 
     commit(repo, "mio.txt")
     status = read_status(repo)

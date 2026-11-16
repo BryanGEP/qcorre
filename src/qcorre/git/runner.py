@@ -70,14 +70,15 @@ class GitRunner:
         self.git = git
         self.timeout = timeout
 
-    def run(self, *args: str, check: bool = False) -> GitResult:
+    def run(self, *args: str, check: bool = False, timeout: float | None = None) -> GitResult:
         """Ejecuta ``git <args>`` en el repo.
 
         Con ``check=True`` lanza ``GitError`` si git devuelve un código de
         error. Siempre lanza ``GitError`` si git no está instalado o tarda
-        demasiado.
+        demasiado (``timeout`` cambia el límite para este comando).
         """
         command = format_command(args)
+        timeout = self.timeout if timeout is None else timeout
         try:
             completed = subprocess.run(
                 [self.git, "-c", "core.quotepath=false", *args],
@@ -88,7 +89,7 @@ class GitRunner:
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                timeout=self.timeout,
+                timeout=timeout,
                 creationflags=_creation_flags(),
             )
         except FileNotFoundError as error:
@@ -96,7 +97,7 @@ class GitRunner:
         except NotADirectoryError as error:
             raise GitError("failed", str(error), command) from error
         except subprocess.TimeoutExpired as error:
-            raise GitError("timeout", f"{command} ({self.timeout:.0f}s)", command) from error
+            raise GitError("timeout", f"{command} ({timeout:.0f}s)", command) from error
         except OSError as error:
             raise GitError("failed", str(error), command) from error
 
