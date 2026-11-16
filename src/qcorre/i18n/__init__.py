@@ -16,7 +16,7 @@ from __future__ import annotations
 import locale
 import os
 import sys
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 from qcorre.i18n import en, es
 
@@ -82,28 +82,62 @@ def normalize_language(code: str | None) -> str | None:
     return None
 
 
-def detect_language(environ: Mapping[str, str] | None = None) -> str:
+def detect_language(
+    environ: Mapping[str, str] | None = None,
+    *,
+    platform: str | None = None,
+    system_locale: Callable[[], str | None] | None = None,
+) -> str:
     """Elige el idioma inicial.
 
-    Orden: variable ``QCORRE_LANG``, variables de locale estándar, idioma del
-    sistema y, si nada coincide, inglés.
+    Orden de prioridad:
+
+    1. La variable ``QCORRE_LANG`` (elección explícita del usuario).
+    2. En Windows, el idioma de la interfaz del sistema. Va *antes* que
+       ``LANG``/``LC_*`` porque en Windows esas variables no reflejan el
+       idioma del usuario: las fijan herramientas como Git Bash o VS Code
+       (casi siempre a ``en_US.UTF-8``).
+    3. Las variables de locale estándar (``LC_ALL``, ``LC_MESSAGES``, ``LANG``).
+    4. En los demás sistemas, el locale del sistema.
+    5. Inglés.
+
+    ``environ``, ``platform`` y ``system_locale`` se pueden inyectar para
+    testear; por defecto se usan los reales.
     """
     env = os.environ if environ is None else environ
-    for var in ("QCORRE_LANG", "LC_ALL", "LC_MESSAGES", "LANG"):
+    platform = sys.platform if platform is None else platform
+    if system_locale is None:
+        # Con un entorno inyectado no se consulta al sistema real, para que
+        # los tests sean deterministas.
+        system_locale = _system_locale if environ is None else (lambda: None)
+
+    explicit = normalize_language(env.get("QCORRE_LANG"))
+    if explicit:
+        return explicit
+
+    windows = platform == "win32"
+    if windows:
+        lang = normalize_language(system_locale())
+        if lang:
+            return lang
+    for var in ("LC_ALL", "LC_MESSAGES", "LANG"):
         lang = normalize_language(env.get(var))
         if lang:
             return lang
-    # Solo se consulta al sistema cuando se usa el entorno real, para que los
-    # tests que pasan su propio ``environ`` sean deterministas.
-    if environ is None:
-        lang = normalize_language(_system_locale())
+    if not windows:
+        lang = normalize_language(system_locale())
         if lang:
             return lang
     return DEFAULT_LANGUAGE
 
 
 def _system_locale() -> str | None:
-    """Idioma configurado en el sistema operativo, si se puede averiguar."""
+    """Idioma del sistema operativo, si se puede averiguar.
+
+    En Windows es el idioma de la interfaz del usuario (el de los menús), no
+    el formato regional: alguien puede tener Windows en español con formato
+    de fechas de otro país.
+    """
     if sys.platform == "win32":
         try:
             import ctypes

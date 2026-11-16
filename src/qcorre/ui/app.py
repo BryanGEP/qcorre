@@ -15,7 +15,8 @@ from qcorre import i18n
 from qcorre.collectors.killer import Killer
 from qcorre.i18n import t
 from qcorre.models import DevProcess, Snapshot
-from qcorre.ui.confirm import ConfirmScreen
+from qcorre.ui.confirm import ConfirmScreen, InfoScreen
+from qcorre.ui.detail_view import detail_body
 from qcorre.ui.kill_view import KillGroup, kill_body, result_message
 from qcorre.ui.projects_panel import ProjectsPanel
 from qcorre.ui.theme import QCORRE_THEME
@@ -49,6 +50,7 @@ class QcorreApp(App[None]):
     HINTS = [
         ("updown", "hint.move"),
         ("tab", "hint.panel"),
+        ("enter", "hint.details"),
         ("k", "hint.kill"),
         ("K", "hint.kill_all"),
         ("r", "hint.refresh"),
@@ -131,6 +133,15 @@ class QcorreApp(App[None]):
             row.project if row else None,
             orphans=row is not None and row.project is None,
         )
+
+    # ── Detalle de un proceso ───────────────────────────────────
+
+    def on_projects_panel_detail_requested(self, event: ProjectsPanel.DetailRequested) -> None:
+        process = event.row.process
+        if process is None:
+            return
+        body = detail_body(process, event.row.project, time.time())
+        self.push_screen(InfoScreen(process.label, body))
 
     # ── Matar procesos ──────────────────────────────────────────
 

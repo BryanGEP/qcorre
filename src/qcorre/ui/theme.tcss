@@ -91,9 +91,9 @@ Panel:focus, Panel:focus-within {
     color: $qc-muted;
 }
 
-/* ── Diálogo de confirmación ──────────────────────────────── */
+/* ── Diálogos (confirmación y detalle) ────────────────────── */
 
-ConfirmScreen {
+ConfirmScreen, InfoScreen {
     align: center middle;
     background: $background 75%;
 }
@@ -108,6 +108,10 @@ ConfirmScreen {
     border: round $primary;
     border-title-color: $primary;
     border-title-style: bold;
+}
+
+InfoScreen #dialog {
+    width: 88;
 }
 
 #dialog.danger {

@@ -64,8 +64,11 @@ class DevProcess:
 
     Puede representar varios procesos del sistema: un servidor y sus
     trabajadores con el mismo nombre se funden en una sola fila. ``info`` es el
-    proceso líder (el que hay que matar para terminar con todos) y ``pids``
-    incluye a todos los miembros.
+    proceso líder (el que hay que matar para terminar con todos); ``pids`` y
+    ``members`` incluyen a todos, del más viejo al más nuevo.
+
+    ``parent_name`` es el nombre del proceso que lanzó al líder, o ``None`` si
+    ya no existe o no se pudo saber.
     """
 
     info: ProcessInfo
@@ -74,6 +77,8 @@ class DevProcess:
     ports: tuple[int, ...] = ()
     pids: tuple[int, ...] = ()
     orphan_reasons: tuple[OrphanReason, ...] = ()
+    members: tuple[ProcessInfo, ...] = ()
+    parent_name: str | None = None
 
     @property
     def pid(self) -> int:

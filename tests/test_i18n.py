@@ -1,5 +1,7 @@
 """Tests de las traducciones."""
 
+import sys
+
 import pytest
 
 from qcorre import i18n
@@ -80,3 +82,42 @@ def test_detect_language_respeta_la_prioridad():
     assert i18n.detect_language({"LANG": "es_ES.UTF-8"}) == "es"
     assert i18n.detect_language({"LANG": "fr_FR"}) == "en"
     assert i18n.detect_language({}) == "en"
+
+
+def test_en_windows_gana_el_idioma_de_la_interfaz_sobre_LANG():
+    # Git Bash y VS Code fijan LANG=en_US.UTF-8 aunque Windows esté en español.
+    env = {"LANG": "en_US.UTF-8"}
+    assert (
+        i18n.detect_language(env, platform="win32", system_locale=lambda: "es_ES") == "es"
+    )
+    assert (
+        i18n.detect_language(env, platform="win32", system_locale=lambda: "en_US") == "en"
+    )
+
+
+def test_en_windows_QCORRE_LANG_sigue_mandando():
+    env = {"QCORRE_LANG": "en", "LANG": "es_MX.UTF-8"}
+    assert i18n.detect_language(env, platform="win32", system_locale=lambda: "es_ES") == "en"
+
+
+def test_en_windows_sin_idioma_soportado_cae_a_LANG_y_luego_a_ingles():
+    assert (
+        i18n.detect_language(
+            {"LANG": "es_MX.UTF-8"}, platform="win32", system_locale=lambda: "fr_FR"
+        )
+        == "es"
+    )
+    assert i18n.detect_language({}, platform="win32", system_locale=lambda: None) == "en"
+
+
+def test_en_unix_LANG_gana_al_locale_del_sistema():
+    env = {"LANG": "en_US.UTF-8"}
+    assert i18n.detect_language(env, platform="linux", system_locale=lambda: "es_ES") == "en"
+    assert i18n.detect_language({}, platform="darwin", system_locale=lambda: "es_MX") == "es"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="consulta la API de Windows")
+def test_system_locale_en_windows_devuelve_un_codigo_de_idioma():
+    code = i18n._system_locale()
+    assert code is not None
+    assert "_" in code  # por ejemplo es_ES o en_US
