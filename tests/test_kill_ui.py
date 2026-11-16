@@ -1,7 +1,7 @@
 """Tests del flujo "matar procesos" en la interfaz, con un Killer falso."""
 
 import pytest
-from test_app import sample_snapshot, settle
+from test_app import sample_snapshot, sample_status, settle
 
 from qcorre import i18n
 from qcorre.collectors.killer import KillResult, Victim
@@ -43,7 +43,9 @@ class FakeKiller:
 
 def make_app(killer: FakeKiller, snapshot: Snapshot | None = None) -> QcorreApp:
     snapshot = snapshot or sample_snapshot()
-    return QcorreApp(scanner=lambda: snapshot, killer=killer, refresh_seconds=None)
+    return QcorreApp(
+        scanner=lambda: snapshot, killer=killer, git_reader=sample_status, refresh_seconds=None
+    )
 
 
 def dialog_text(app: QcorreApp) -> str:

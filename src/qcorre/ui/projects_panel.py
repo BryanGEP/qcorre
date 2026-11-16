@@ -124,7 +124,7 @@ class ProjectsPanel(Panel):
         empty = self.query_one(".empty", Static)
         tree = self.tree
         snapshot = self.snapshot
-        if snapshot is None or snapshot.process_count == 0:
+        if snapshot is None or snapshot.is_empty:
             empty.update(t("projects.scanning" if snapshot is None else "projects.empty"))
             empty.display = True
             tree.display = False
@@ -181,11 +181,11 @@ class ProjectsPanel(Panel):
 
     def _build_lines(self, snapshot: Snapshot) -> list[tuple[Row, Text]]:
         everyone = [d for p in snapshot.projects for d in p.processes] + list(snapshot.unassigned)
-        ports_width = max(len(_ports(d)) for d in everyone)
-        time_width = max(len(_time_text(d, self._now)) for d in everyone)
+        ports_width = max((len(_ports(d)) for d in everyone), default=0)
+        time_width = max((len(_time_text(d, self._now)) for d in everyone), default=0)
         # Lo que queda para el nombre tras la sangría, la marca y las columnas.
         available = self.content_size.width - _INDENT - 2 - 2 - ports_width - 2 - time_width
-        label_width = max(len(d.label) for d in everyone)
+        label_width = max((len(d.label) for d in everyone), default=0)
         label_width = max(_MIN_LABEL, min(label_width, _MAX_LABEL, available))
 
         lines: list[tuple[Row, Text]] = []
@@ -229,7 +229,10 @@ def _is_flagged(dev: DevProcess) -> bool:
 def _project_line(project: Project) -> Text:
     text = Text(no_wrap=True, overflow="ellipsis")
     text.append(project.name, style=f"bold {theme.FOREGROUND}")
-    text.append(f"  {len(project.processes)}", style=theme.MUTED)
+    if project.processes:
+        text.append(f"  {len(project.processes)}", style=theme.MUTED)
+    else:
+        text.append(f"  {t('tag.idle')}", style=f"italic {theme.MUTED}")
     if not project.has_git:
         text.append(f"  {t('tag.no_git')}", style=f"italic {theme.MUTED}")
     if any(_is_flagged(d) for d in project.processes):

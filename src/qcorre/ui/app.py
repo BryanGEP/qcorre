@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Sequence
+from pathlib import Path
 
 from textual import work
 from textual.app import App, ComposeResult
@@ -13,14 +14,18 @@ from textual.worker import Worker, WorkerState
 
 from qcorre import i18n
 from qcorre.collectors.killer import Killer
+from qcorre.git.parse import RepoStatus
+from qcorre.git.runner import GitError
+from qcorre.git.status import read_status
 from qcorre.i18n import t
 from qcorre.models import DevProcess, Snapshot
 from qcorre.ui.confirm import ConfirmScreen, InfoScreen
 from qcorre.ui.detail_view import detail_body
+from qcorre.ui.git_panel import GitPanel
 from qcorre.ui.kill_view import KillGroup, kill_body, result_message
 from qcorre.ui.projects_panel import ProjectsPanel
 from qcorre.ui.theme import QCORRE_THEME
-from qcorre.ui.widgets import GitPanel, Header, HintBar
+from qcorre.ui.widgets import Header, HintBar
 
 # Cada cuántos segundos se vuelve a escanear el sistema.
 REFRESH_SECONDS = 3.0
@@ -29,9 +34,10 @@ REFRESH_SECONDS = 3.0
 class QcorreApp(App[None]):
     """Panel del desarrollador: procesos por proyecto y git amigable.
 
-    ``scanner`` es cualquier función que devuelva un ``Snapshot`` y ``killer``
-    quien cierra procesos. Por defecto se usa el sistema real; los tests y el
-    modo demo pasan los suyos.
+    ``scanner`` es cualquier función que devuelva un ``Snapshot``, ``killer``
+    quien cierra procesos y ``git_reader`` una función que lee el estado de un
+    repo. Por defecto se usa el sistema real; los tests y el modo demo pasan
+    los suyos.
     """
 
     TITLE = "qcorre"
@@ -62,6 +68,7 @@ class QcorreApp(App[None]):
         self,
         scanner: Callable[[], Snapshot] | None = None,
         killer: Killer | None = None,
+        git_reader: Callable[[Path], RepoStatus] | None = None,
         *,
         refresh_seconds: float | None = REFRESH_SECONDS,
     ) -> None:
@@ -69,9 +76,10 @@ class QcorreApp(App[None]):
         if scanner is None:
             from qcorre.scanner import Scanner
 
-            scanner = Scanner()
+            scanner = Scanner(pinned=[Path.cwd()])
         self.scanner = scanner
         self.killer = killer or Killer()
+        self.git_reader = git_reader or read_status
         self.refresh_seconds = refresh_seconds
         self.register_theme(QCORRE_THEME)
         self.theme = QCORRE_THEME.name
@@ -120,19 +128,49 @@ class QcorreApp(App[None]):
             self.notify(message, severity=severity)
             self.action_refresh()
             return
+        if event.worker.group == "git":
+            path, result = event.worker.result
+            self.query_one(GitPanel).show_status(path, result)
+            return
         if event.worker.group != "scan":
             return
         snapshot = event.worker.result
         if isinstance(snapshot, Snapshot):
             self.query_one(ProjectsPanel).show_snapshot(snapshot, time.time())
             self.query_one(Header).set_counts(len(snapshot.projects), snapshot.process_count)
+            # Con cada refresco se relee también el repo que se está mirando.
+            self._load_git()
 
     def on_projects_panel_selected(self, event: ProjectsPanel.Selected) -> None:
         row = event.row
-        self.query_one(GitPanel).show_project(
+        panel = self.query_one(GitPanel)
+        previous = panel.project.path if panel.project else None
+        panel.show_project(
             row.project if row else None,
             orphans=row is not None and row.project is None,
         )
+        current = panel.project.path if panel.project else None
+        if current != previous:
+            self._load_git()
+
+    # ── Git ─────────────────────────────────────────────────────
+
+    def _load_git(self) -> None:
+        """Lee en un hilo aparte el repo del proyecto seleccionado."""
+        project = self.query_one(GitPanel).project
+        if project is None or not project.has_git:
+            return
+        path = project.path
+
+        def read() -> tuple[Path, RepoStatus | GitError]:
+            try:
+                return path, self.git_reader(path)
+            except GitError as error:
+                return path, error
+
+        # ``exclusive`` descarta la lectura anterior si el usuario ya se movió
+        # a otro proyecto.
+        self.run_worker(read, thread=True, group="git", exclusive=True, exit_on_error=False)
 
     # ── Detalle de un proceso ───────────────────────────────────
 

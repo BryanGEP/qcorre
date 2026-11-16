@@ -21,7 +21,9 @@ from qcorre.models import (
 )
 from qcorre.ui.app import QcorreApp
 from qcorre.ui.projects_panel import ProjectsPanel
-from qcorre.ui.widgets import GitPanel, Header, HintBar
+from qcorre.git.parse import FileChange, RepoStatus
+from qcorre.ui.git_panel import GitPanel
+from qcorre.ui.widgets import Header, HintBar
 
 HOUR = 3600.0
 
@@ -65,16 +67,43 @@ def sample_snapshot() -> Snapshot:
     return Snapshot(projects=(api, web), unassigned=orphans)
 
 
-def make_app(snapshot: Snapshot | None = None) -> QcorreApp:
+def sample_status(path=None) -> RepoStatus:
+    """Estado de git fijo: los proyectos de prueba no existen en disco."""
+    return RepoStatus(
+        branch="feature/pagos",
+        oid="a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+        upstream="origin/feature/pagos",
+        ahead=2,
+        behind=1,
+        files=(
+            FileChange("app/pagos.py", worktree="M"),
+            FileChange("app/models.py", index="M"),
+            FileChange("tests/test_pagos.py", worktree="M"),
+            FileChange("app/webhooks.py", untracked=True),
+        ),
+        remotes=("origin",),
+        upstream_oid="9f8e7d6",
+        last_fetch=time.time() - 2 * HOUR,
+    )
+
+
+def make_app(snapshot: Snapshot | None = None, git_reader=sample_status) -> QcorreApp:
     snapshot = sample_snapshot() if snapshot is None else snapshot
-    return QcorreApp(scanner=lambda: snapshot, refresh_seconds=None)
+    return QcorreApp(scanner=lambda: snapshot, git_reader=git_reader, refresh_seconds=None)
 
 
 async def settle(app: QcorreApp, pilot) -> None:
-    """Espera a que termine el escaneo y se pinte el resultado."""
-    await app.workers.wait_for_complete()
-    await pilot.pause()
-    await pilot.pause()
+    """Espera a que terminen los trabajos en segundo plano y se pinte todo.
+
+    Un trabajo puede lanzar otro al terminar (el escaneo relee git), así que
+    se repite hasta que no quede ninguno corriendo.
+    """
+    for _ in range(10):
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+        await pilot.pause()
+        if not any(worker.is_running for worker in app.workers):
+            break
 
 
 def tree_lines(app: QcorreApp) -> list[str]:
@@ -126,7 +155,7 @@ async def test_mover_el_cursor_cambia_el_proyecto_seleccionado():
     async with app.run_test(size=(110, 30)) as pilot:
         await settle(app, pilot)
         git = app.query_one(GitPanel)
-        assert git.border_title == "tienda-api"
+        assert git.border_title == "tienda-api · feature/pagos"
         for _ in range(5):  # baja hasta la cabecera de tienda-web
             await pilot.press("down")
         await pilot.pause()
@@ -136,7 +165,9 @@ async def test_mover_el_cursor_cambia_el_proyecto_seleccionado():
 
 async def test_el_refresco_conserva_el_cursor():
     snapshots = [sample_snapshot()]
-    app = QcorreApp(scanner=lambda: snapshots[-1], refresh_seconds=None)
+    app = QcorreApp(
+        scanner=lambda: snapshots[-1], git_reader=sample_status, refresh_seconds=None
+    )
     async with app.run_test(size=(110, 30)) as pilot:
         await settle(app, pilot)
         panel = app.query_one(ProjectsPanel)
@@ -180,7 +211,7 @@ async def test_tab_cambia_de_panel():
         await settle(app, pilot)
         assert app.focused is app.query_one(ProjectsPanel).tree
         await pilot.press("tab")
-        assert app.focused is app.query_one(GitPanel)
+        assert app.focused is app.query_one("#git-scroll")
 
 
 async def test_i_cambia_el_idioma_de_toda_la_interfaz():

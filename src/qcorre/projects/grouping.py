@@ -188,6 +188,22 @@ def group_processes(
     return Snapshot(projects=tuple(projects), unassigned=tuple(unassigned))
 
 
+def with_pinned(snapshot: Snapshot, roots: Iterable[ProjectRoot]) -> Snapshot:
+    """Añade al ``Snapshot`` proyectos fijos, aunque no tengan procesos.
+
+    Sirve para que el proyecto desde el que se abrió qcorre aparezca siempre:
+    así se puede ver su git aunque no haya nada corriendo.
+    """
+    present = {project.root for project in snapshot.projects}
+    extra = [Project(root=root, processes=()) for root in dict.fromkeys(roots) if root not in present]
+    if not extra:
+        return snapshot
+    projects = sorted(
+        [*snapshot.projects, *extra], key=lambda p: (p.name.casefold(), str(p.path))
+    )
+    return Snapshot(projects=tuple(projects), unassigned=snapshot.unassigned)
+
+
 class _Family:
     """Procesos que se muestran como una sola fila."""
 

@@ -348,3 +348,35 @@ def test_guarda_los_miembros_y_el_nombre_del_padre(home, resolver):
     assert [m.pid for m in uvicorn.members] == [1, 2]
     assert uvicorn.parent_name == "bash"  # la terminal (pid 100)
     assert node.parent_name is None
+
+
+# ── Proyectos fijos (aparecen aunque no tengan procesos) ──
+
+
+def test_with_pinned_agrega_el_proyecto_sin_procesos(home, resolver):
+    from qcorre.projects.grouping import with_pinned
+
+    api = repo(home, "api")
+    otro = repo(home, "Otro")
+    snapshot = group(resolver, proc(1, "node", cwd=api, ports=(3000,)))
+    pinned = with_pinned(snapshot, [resolver.find_root(otro)])
+    assert [p.name for p in pinned.projects] == ["api", "Otro"]
+    assert pinned.projects[1].processes == ()
+    assert pinned.process_count == 1
+    assert not pinned.is_empty
+
+
+def test_with_pinned_no_duplica_un_proyecto_que_ya_esta(home, resolver):
+    from qcorre.projects.grouping import with_pinned
+
+    api = repo(home, "api")
+    snapshot = group(resolver, proc(1, "node", cwd=api, ports=(3000,)))
+    root = resolver.find_root(api)
+    assert with_pinned(snapshot, [root, root]) is snapshot
+    assert len(snapshot.projects[0].processes) == 1
+
+
+def test_snapshot_vacio():
+    from qcorre.models import Snapshot
+
+    assert Snapshot().is_empty

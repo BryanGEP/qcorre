@@ -127,3 +127,8 @@ class Snapshot:
     @property
     def process_count(self) -> int:
         return sum(len(p.processes) for p in self.projects) + len(self.unassigned)
+
+    @property
+    def is_empty(self) -> bool:
+        """No hay nada que mostrar: ni proyectos ni procesos sueltos."""
+        return not self.projects and not self.unassigned

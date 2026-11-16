@@ -14,7 +14,6 @@ from textual.widgets import Static
 
 from qcorre import i18n
 from qcorre.i18n import t
-from qcorre.models import Project
 from qcorre.ui import theme
 
 # Cómo se dibuja cada tecla en el pie.
@@ -70,42 +69,6 @@ class Panel(Vertical):
 
     def update_texts(self) -> None:
         self.border_title = t(self.title_key)
-
-
-class GitPanel(Panel):
-    """Panel derecho. Por ahora solo presenta el proyecto seleccionado."""
-
-    title_key = "panel.git"
-    can_focus = True
-
-    def __init__(self, *, id: str) -> None:
-        super().__init__(id=id)
-        self._project: Project | None = None
-        self._orphans = False
-
-    def compose(self) -> ComposeResult:
-        yield Static(classes="empty")
-
-    def show_project(self, project: Project | None, *, orphans: bool = False) -> None:
-        """Cambia el proyecto mostrado (``orphans`` = el grupo de huérfanos)."""
-        self._project = project
-        self._orphans = orphans
-        self.update_texts()
-
-    def update_texts(self) -> None:
-        body = self.query_one(".empty", Static)
-        project = self._project
-        if project is None:
-            self.border_title = t("panel.git")
-            body.update(t("git.orphans") if self._orphans else t("git.empty"))
-            return
-        self.border_title = project.name
-        text = Text(justify="center")
-        text.append(project.name + "\n", style=f"bold {theme.FOREGROUND}")
-        text.append(str(project.path), style=theme.MUTED)
-        if not project.has_git:
-            text.append("\n\n" + t("git.no_repo"), style=theme.MUTED)
-        body.update(text)
 
 
 class HintBar(Static):

@@ -18,7 +18,8 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 
-qcorre            # abre la interfaz
+qcorre            # abre la interfaz; el proyecto de la carpeta actual siempre se muestra
+qcorre ../otro    # igual, pero fijando otro proyecto
 qcorre --lang en  # fuerza el idioma (es / en)
 pytest            # corre los tests
 ```
