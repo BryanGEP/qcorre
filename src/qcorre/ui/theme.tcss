@@ -37,16 +37,46 @@ Panel {
     background: $background;
 }
 
-Panel:focus {
+Panel:focus, Panel:focus-within {
     border: round $primary;
     border-title-color: $primary;
     border-title-style: bold;
 }
 
 #projects {
-    width: 36%;
-    min-width: 32;
-    max-width: 50;
+    width: 42%;
+    min-width: 36;
+    max-width: 60;
+}
+
+/* Árbol de proyectos */
+
+#tree {
+    background: $background;
+    overflow-x: hidden;
+    scrollbar-size-vertical: 1;
+}
+
+#tree:focus {
+    background-tint: transparent;
+}
+
+#tree > .tree--guides, #tree > .tree--guides-hover, #tree > .tree--guides-selected {
+    color: $qc-muted;
+}
+
+#tree > .tree--highlight-line {
+    background: $surface;
+}
+
+#tree > .tree--cursor {
+    background: $panel;
+    text-style: none;
+}
+
+#tree:focus > .tree--cursor {
+    background: $primary 22%;
+    text-style: none;
 }
 
 #git {

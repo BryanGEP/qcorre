@@ -14,20 +14,29 @@ from textual.widgets import Static
 
 from qcorre import i18n
 from qcorre.i18n import t
+from qcorre.models import Project
 from qcorre.ui import theme
 
 # Cómo se dibuja cada tecla en el pie.
-KEY_GLYPHS = {"tab": "⇥", "enter": "⏎", "escape": "esc", "up": "↑", "down": "↓"}
+KEY_GLYPHS = {"tab": "⇥", "enter": "⏎", "escape": "esc", "updown": "↑↓"}
 
 
 class Header(Horizontal):
-    """Cabecera: marca a la izquierda, idioma activo a la derecha."""
+    """Cabecera: marca a la izquierda; conteos e idioma a la derecha."""
+
+    def __init__(self, *, id: str) -> None:
+        super().__init__(id=id)
+        self._counts: tuple[int, int] | None = None
 
     def compose(self) -> ComposeResult:
         yield Static(id="brand")
         yield Static(id="status")
 
     def on_mount(self) -> None:
+        self.update_texts()
+
+    def set_counts(self, projects: int, processes: int) -> None:
+        self._counts = (projects, processes)
         self.update_texts()
 
     def update_texts(self) -> None:
@@ -37,29 +46,63 @@ class Header(Horizontal):
         brand.append("  " + t("app.tagline"), style=theme.MUTED)
         self.query_one("#brand", Static).update(brand)
 
-        status = Text(i18n.get_language().upper(), style=f"bold {theme.ACCENT}")
+        status = Text()
+        if self._counts is not None:
+            projects, processes = self._counts
+            status.append(t("status.projects", n=projects), style=theme.MUTED)
+            status.append("  ·  ", style=theme.MUTED)
+            status.append(t("status.processes", n=processes), style=theme.MUTED)
+            status.append("  ·  ", style=theme.MUTED)
+        status.append(i18n.get_language().upper(), style=f"bold {theme.ACCENT}")
         self.query_one("#status", Static).update(status)
 
 
 class Panel(Vertical):
-    """Panel con borde redondeado y título traducible en el borde."""
+    """Panel con borde redondeado y título en el borde."""
 
-    can_focus = True
-
-    def __init__(self, title_key: str, empty_key: str, *, id: str) -> None:
-        super().__init__(id=id)
-        self.title_key = title_key
-        self.empty_key = empty_key
-
-    def compose(self) -> ComposeResult:
-        yield Static(classes="empty")
+    title_key = ""
 
     def on_mount(self) -> None:
         self.update_texts()
 
     def update_texts(self) -> None:
         self.border_title = t(self.title_key)
-        self.query_one(".empty", Static).update(t(self.empty_key))
+
+
+class GitPanel(Panel):
+    """Panel derecho. Por ahora solo presenta el proyecto seleccionado."""
+
+    title_key = "panel.git"
+    can_focus = True
+
+    def __init__(self, *, id: str) -> None:
+        super().__init__(id=id)
+        self._project: Project | None = None
+        self._orphans = False
+
+    def compose(self) -> ComposeResult:
+        yield Static(classes="empty")
+
+    def show_project(self, project: Project | None, *, orphans: bool = False) -> None:
+        """Cambia el proyecto mostrado (``orphans`` = el grupo de huérfanos)."""
+        self._project = project
+        self._orphans = orphans
+        self.update_texts()
+
+    def update_texts(self) -> None:
+        body = self.query_one(".empty", Static)
+        project = self._project
+        if project is None:
+            self.border_title = t("panel.git")
+            body.update(t("git.orphans") if self._orphans else t("git.empty"))
+            return
+        self.border_title = project.name
+        text = Text(justify="center")
+        text.append(project.name + "\n", style=f"bold {theme.FOREGROUND}")
+        text.append(str(project.path), style=theme.MUTED)
+        if not project.has_git:
+            text.append("\n\n" + t("git.no_repo"), style=theme.MUTED)
+        body.update(text)
 
 
 class HintBar(Static):

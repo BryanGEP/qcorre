@@ -134,6 +134,124 @@ def test_pid_de_padre_reutilizado_cuenta_como_padre_muerto(home, resolver):
     assert snapshot.projects[0].processes[0].orphan_reasons == (OrphanReason.PARENT_GONE,)
 
 
+def test_no_hereda_el_proyecto_de_un_pid_reutilizado(home, resolver):
+    api = repo(home, "api")
+    snapshot = group(
+        resolver,
+        # El pid 50 está dentro de un proyecto, pero nació después que su
+        # supuesto hijo: no es su padre y no debe prestarle el proyecto.
+        proc(50, "bash", cwd=api, age=1 * HOUR),
+        proc(1, "node", cwd="/", ports=(3000,), ppid=50, age=5 * HOUR),
+    )
+    assert snapshot.projects == ()
+    (orphan,) = snapshot.unassigned
+    assert set(orphan.orphan_reasons) == {OrphanReason.NO_PROJECT, OrphanReason.PARENT_GONE}
+
+
+def test_padre_con_la_misma_fecha_de_creacion_es_valido(home, resolver):
+    api = repo(home, "api")
+    snapshot = group(
+        resolver,
+        proc(50, "bash", cwd=api, age=2 * HOUR),
+        proc(1, "node", cwd="/", ports=(3000,), ppid=50, age=2 * HOUR),
+    )
+    assert snapshot.projects[0].processes[0].orphan_reasons == ()
+
+
+# ── Cadenas: lanzador sin puertos + servidores que cuelgan de él ──
+
+
+def npm(pid, cwd, **kwargs):
+    cmdline = ("node", "/usr/lib/node_modules/npm/bin/npm-cli.js", "run", "dev")
+    return proc(pid, "node.exe", cwd=cwd, cmdline=cmdline, age=2 * HOUR, **kwargs)
+
+
+def vite(pid, cwd, ppid, port=5173):
+    cmdline = ("node", cwd + "/node_modules/vite/bin/vite.js")
+    return proc(pid, "node.exe", cwd=cwd, cmdline=cmdline, ppid=ppid, ports=(port,))
+
+
+def test_npm_run_dev_en_windows_es_una_sola_fila(home, resolver):
+    web = repo(home, "web")
+    snapshot = group(
+        resolver,
+        npm(1, web),
+        proc(2, "cmd.exe", cwd=web, ppid=1, age=1.5 * HOUR, cmdline=("cmd.exe", "/d", "/s", "/c", "vite")),
+        vite(3, web, ppid=2),
+    )  # fmt: skip
+    (row,) = snapshot.projects[0].processes
+    assert row.label == "npm run dev → vite"
+    assert row.ports == (5173,)
+    assert row.pid == 1  # matar la fila mata desde el lanzador
+    assert row.pids == (1, 2, 3)  # ...y la cadena completa
+    assert row.kind is ProcessKind.SERVER
+
+
+def test_npm_que_lanza_node_directamente(home, resolver):
+    # En Unix a veces no hay shell intermedio: npm (node) -> vite (node).
+    web = repo(home, "web")
+    snapshot = group(resolver, npm(1, web), vite(3, web, ppid=1))
+    (row,) = snapshot.projects[0].processes
+    assert row.label == "npm run dev → vite"
+    assert row.pids == (1, 3)
+
+
+def test_lanzador_con_varios_servidores(home, resolver):
+    web = repo(home, "web")
+    snapshot = group(
+        resolver,
+        npm(1, web),
+        proc(2, "sh", cwd=web, ppid=1, cmdline=("sh", "-c", "vite")),
+        vite(3, web, ppid=2),
+        proc(4, "sh", cwd=web, ppid=1, cmdline=("sh", "-c", "uvicorn api:app")),
+        proc(5, "uvicorn", cwd=web, ppid=4, ports=(8000,)),
+    )
+    (row,) = snapshot.projects[0].processes
+    assert row.label == "npm run dev → vite, uvicorn"
+    assert row.ports == (5173, 8000)
+    assert set(row.pids) == {1, 2, 3, 4, 5}
+
+
+def test_cadena_anidada(home, resolver):
+    api = repo(home, "api")
+    snapshot = group(
+        resolver,
+        npm(1, api),
+        proc(2, "sh", cwd=api, ppid=1, age=1.9 * HOUR, cmdline=("sh", "-c", "nodemon server.js")),
+        proc(3, "nodemon", cwd=api, ppid=2, age=1.8 * HOUR),
+        proc(4, "node", cwd=api, ppid=3, ports=(3000,), cmdline=("node", "server.js")),
+    )  # fmt: skip
+    (row,) = snapshot.projects[0].processes
+    assert row.label == "npm run dev → nodemon → node server.js"
+    assert row.pids == (1, 2, 3, 4)
+
+
+def test_no_se_traga_la_terminal_ni_otros_proyectos(home, resolver):
+    web, otro = repo(home, "web"), repo(home, "otro")
+    snapshot = group(
+        resolver,
+        # Shell interactivo (sin -c) dentro del proyecto: no es intermediario.
+        proc(1, "node", cwd=web, age=3 * HOUR, cmdline=("node", "agente.js")),
+        proc(2, "bash", cwd=web, ppid=1, age=2 * HOUR, cmdline=("bash",)),
+        vite(3, web, ppid=2),
+        # Lanzador de otro proyecto: tampoco se funde.
+        npm(10, otro),
+        proc(11, "sh", cwd=web, ppid=10, cmdline=("sh", "-c", "vite")),
+        vite(12, web, ppid=11, port=5174),
+    )
+    web_rows = next(p for p in snapshot.projects if p.name == "web").processes
+    assert [r.label for r in web_rows] == ["vite", "vite", "node agente.js"]
+    assert [r.pids for r in web_rows] == [(3,), (12,), (1,)]
+
+
+def test_lanzador_sin_servidores_queda_como_herramienta(home, resolver):
+    web = repo(home, "web")
+    snapshot = group(resolver, npm(1, web))
+    (row,) = snapshot.projects[0].processes
+    assert row.label == "npm run dev"
+    assert row.kind is ProcessKind.TOOL
+
+
 def test_base_de_datos_sin_padre_no_es_huerfana_por_eso(home, resolver):
     api = repo(home, "api")
     snapshot = group(
