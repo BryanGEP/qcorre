@@ -9,7 +9,7 @@ from rich.text import Text
 
 from qcorre.collectors.killer import KillResult, Victim
 from qcorre.i18n import t
-from qcorre.models import DevProcess
+from qcorre.models import DevProcess, ProcessKind
 from qcorre.ui import theme
 
 # Una fila del panel y los procesos del sistema que se cerrarían con ella.
@@ -32,6 +32,14 @@ def kill_body(groups: Sequence[KillGroup], *, windows: bool | None = None) -> Te
     for bullet in bullets:
         text.append("  • ", style=theme.MUTED)
         text.append(bullet + "\n", style=theme.FOREGROUND)
+    databases = [dev.label for dev, _ in groups if dev.kind is ProcessKind.DATABASE]
+    if databases:
+        # Con una sola fila en el diálogo se habla en singular ("Es una base
+        # de datos"); con varias se dice cuáles lo son.
+        count = 1 if len(groups) == 1 else 2
+        warning = t("kill.database_warning", n=count, names=", ".join(databases))
+        text.append("  • ", style=theme.WARNING)
+        text.append(warning + "\n", style=theme.WARNING)
     if any(dev.access_denied for dev, _ in groups):
         text.append("  • ", style=theme.WARNING)
         text.append(t("kill.denied_warning") + "\n", style=theme.WARNING)

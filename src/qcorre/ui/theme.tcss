@@ -83,6 +83,15 @@ Panel:focus, Panel:focus-within {
     width: 1fr;
 }
 
+#git-scroll {
+    padding: 1 1 0 1;
+    scrollbar-size-vertical: 1;
+}
+
+#git-scroll:focus {
+    background-tint: transparent;
+}
+
 .empty {
     width: 100%;
     height: 100%;

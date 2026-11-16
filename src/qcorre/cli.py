@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Sequence
+from pathlib import Path
 
 from qcorre import __version__, i18n
 
@@ -13,6 +14,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="qcorre",
         description="¿Qué corre en tu compu? / What's running on your machine?",
+    )
+    parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help=(
+            "carpeta del proyecto que siempre se muestra (por defecto, la actual) / "
+            "project folder that is always shown (default: current)"
+        ),
     )
     parser.add_argument(
         "--lang",
@@ -29,7 +39,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     i18n.set_language(args.lang or i18n.detect_language())
 
     # Se importa aquí para que `--help` y `--version` no carguen Textual.
+    from qcorre.scanner import Scanner
     from qcorre.ui.app import QcorreApp
 
-    QcorreApp().run()
+    QcorreApp(scanner=Scanner(pinned=[Path(args.path).resolve()])).run()
     return 0

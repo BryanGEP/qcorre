@@ -128,3 +128,25 @@ def test_scanner_devuelve_un_snapshot_y_no_lista_a_qcorre():
     shown = {pid for p in snapshot.projects for d in p.processes for pid in d.pids}
     shown |= {pid for d in snapshot.unassigned for pid in d.pids}
     assert os.getpid() not in shown
+
+
+def test_scanner_siempre_muestra_el_proyecto_fijado(tmp_path):
+    from qcorre.projects.resolver import ProjectResolver
+
+    project = tmp_path / "code" / "mi-proyecto"
+    (project / ".git").mkdir(parents=True)
+    (project / "src").mkdir()
+    scanner = Scanner(resolver=ProjectResolver(home=tmp_path), pinned=[project / "src"])
+    snapshot = scanner()
+    pinned = [p for p in snapshot.projects if p.name == "mi-proyecto"]
+    assert len(pinned) == 1
+    assert pinned[0].processes == () and pinned[0].has_git
+
+
+def test_scanner_ignora_una_carpeta_fijada_que_no_es_proyecto(tmp_path):
+    from qcorre.projects.resolver import ProjectResolver
+
+    folder = tmp_path / "suelta"
+    folder.mkdir()
+    snapshot = Scanner(resolver=ProjectResolver(home=tmp_path), pinned=[folder])()
+    assert all(p.name != "suelta" for p in snapshot.projects)
