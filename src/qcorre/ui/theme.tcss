@@ -91,6 +91,48 @@ Panel:focus, Panel:focus-within {
     color: $qc-muted;
 }
 
+/* ── Diálogo de confirmación ──────────────────────────────── */
+
+ConfirmScreen {
+    align: center middle;
+    background: $background 75%;
+}
+
+#dialog {
+    width: 68;
+    max-width: 90%;
+    height: auto;
+    max-height: 85%;
+    padding: 1 2;
+    background: $surface;
+    border: round $primary;
+    border-title-color: $primary;
+    border-title-style: bold;
+}
+
+#dialog.danger {
+    border: round $error;
+    border-title-color: $error;
+}
+
+#dialog-body {
+    height: auto;
+    max-height: 100%;
+    scrollbar-size-vertical: 1;
+}
+
+#dialog-keys {
+    height: 1;
+    margin-top: 1;
+}
+
+/* ── Avisos (toasts) ──────────────────────────────────────── */
+
+Toast {
+    background: $panel;
+    color: $foreground;
+}
+
 /* ── Pie con atajos ───────────────────────────────────────── */
 
 HintBar {

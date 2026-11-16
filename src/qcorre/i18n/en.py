@@ -25,8 +25,40 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "git.empty": "Select a project to see its\ngit status in plain language.",
     "git.no_repo": "This project is not a git repository.",
     "git.orphans": "These processes don't belong to any project.",
+    # Diálogo de confirmación
+    "confirm.what": "What will happen",
+    "confirm.accept": "confirm",
+    "confirm.cancel": "cancel",
+    # Matar procesos
+    "kill.title.process": "Kill process",
+    "kill.title.project": "Kill everything in {name}",
+    "kill.title.orphans": "Kill all orphans",
+    "kill.confirm": "kill",
+    "kill.summary": {
+        "one": "{n} system process will be closed",
+        "other": "{n} system processes will be closed",
+    },
+    "kill.ports": {
+        "one": "Port {ports} will be freed",
+        "other": "Ports {ports} will be freed",
+    },
+    "kill.method.posix": "They are asked to exit first; anything alive after 3 s is forced",
+    "kill.method.windows": "On Windows processes are force-closed immediately",
+    "kill.denied_warning": "Some processes deny access: they may refuse to close",
+    "kill.done": {"one": "Closed {n} process", "other": "Closed {n} processes"},
+    "kill.denied": {
+        "one": "{n} process refused to close (no access)",
+        "other": "{n} processes refused to close (no access)",
+    },
+    "kill.survived": {
+        "one": "{n} process is still alive",
+        "other": "{n} processes are still alive",
+    },
+    "kill.gone": "That process no longer exists",
     # Atajos del pie
     "hint.move": "move",
+    "hint.kill": "kill",
+    "hint.kill_all": "kill all",
     "hint.panel": "panel",
     "hint.refresh": "refresh",
     "hint.language": "language",
