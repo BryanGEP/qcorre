@@ -29,7 +29,7 @@ classifiers = [
 ]
 dependencies = [
     "textual>=8.0,<9",
-    "psutil>=5.9",
+    "psutil>=6.0",
 ]
 
 [project.optional-dependencies]

@@ -21,6 +21,7 @@ BORDER = "#262d3a"
 
 # Acento de la marca y colores de estado (solo para comunicar estado).
 ACCENT = "#8b9cff"
+SECONDARY = "#6fd3f2"
 SUCCESS = "#7ee2a8"
 WARNING = "#f5c56b"
 ERROR = "#ff7a85"
@@ -31,7 +32,7 @@ LANES = ("#8b9cff", "#7ee2a8", "#f5c56b", "#ff9bd2", "#6fd3f2", "#ff7a85")
 QCORRE_THEME = Theme(
     name="qcorre",
     primary=ACCENT,
-    secondary="#6fd3f2",
+    secondary=SECONDARY,
     accent=ACCENT,
     foreground=FOREGROUND,
     background=BACKGROUND,

@@ -49,7 +49,20 @@ IGNORED: frozenset[str] = frozenset(
     }
 )  # fmt: skip
 
-KNOWN: frozenset[str] = DATABASES | INTERPRETERS | DEV_TOOLS
+# Lanzadores: no sirven nada ellos mismos, arrancan al servidor real. Si un
+# servidor del mismo proyecto cuelga de uno, se muestran juntos en una fila.
+LAUNCHERS: frozenset[str] = frozenset(
+    {
+        "npm", "npx", "pnpm", "yarn", "bun", "uv", "poetry", "pipenv", "nodemon",
+        "concurrently", "turbo", "nx", "make", "just", "go", "cargo", "dotnet",
+        "air", "foreman", "honcho", "overmind", "tsx", "ts-node",
+    }
+)  # fmt: skip
+
+# Shells que los lanzadores usan como intermediarios.
+SHELLS: frozenset[str] = frozenset({"cmd", "sh", "bash", "dash", "zsh", "pwsh", "powershell"})
+
+KNOWN: frozenset[str] = DATABASES | INTERPRETERS | DEV_TOOLS | LAUNCHERS
 
 # Gestores de paquetes: su nombre se completa con el subcomando (`npm run dev`).
 _PACKAGE_MANAGERS = frozenset({"npm", "npx", "pnpm", "yarn"})
@@ -101,6 +114,24 @@ def classify(
     if has_ports and has_project:
         return ProcessKind.SERVER
     return None
+
+
+def is_launcher(info: ProcessInfo) -> bool:
+    """¿Es un programa cuyo trabajo es lanzar a otros (``npm run dev``)?"""
+    if base_name(info.name) in LAUNCHERS:
+        return True
+    words = describe(info).split()
+    return bool(words) and words[0] in LAUNCHERS
+
+
+def is_command_shell(info: ProcessInfo) -> bool:
+    """¿Es un shell lanzado para ejecutar un solo comando (``cmd /c``, ``sh -c``)?
+
+    Un shell interactivo (la terminal del usuario) no lleva esos argumentos.
+    """
+    if base_name(info.name) not in SHELLS:
+        return False
+    return any(arg.lower() in ("/c", "-c") for arg in info.cmdline[1:6])
 
 
 def describe(info: ProcessInfo) -> str:
