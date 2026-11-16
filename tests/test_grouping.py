@@ -334,3 +334,17 @@ def test_lista_vacia(resolver):
     snapshot = group_processes([], resolver, now=NOW)
     assert snapshot.projects == () and snapshot.unassigned == ()
     assert snapshot.process_count == 0
+
+
+def test_guarda_los_miembros_y_el_nombre_del_padre(home, resolver):
+    api = repo(home, "api")
+    snapshot = group(
+        resolver,
+        proc(1, "python.exe", cwd=api, age=3 * HOUR, cmdline=("python.exe", "-m", "uvicorn")),
+        proc(2, "python.exe", cwd=api, age=2.9 * HOUR, ppid=1, ports=(8000,)),
+        proc(11, "node", cwd=api, ports=(3000,), ppid=999),  # su padre ya no existe
+    )
+    node, uvicorn = snapshot.projects[0].processes  # ordenados por puerto
+    assert [m.pid for m in uvicorn.members] == [1, 2]
+    assert uvicorn.parent_name == "bash"  # la terminal (pid 100)
+    assert node.parent_name is None

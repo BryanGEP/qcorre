@@ -18,7 +18,10 @@ from qcorre.models import Project
 from qcorre.ui import theme
 
 # Cómo se dibuja cada tecla en el pie.
-KEY_GLYPHS = {"tab": "⇥", "enter": "⏎", "escape": "esc", "updown": "↑↓"}
+# Solo se usan símbolos que se ven bien en cualquier terminal: las flechas
+# de tabulador y de enter, por ejemplo, salen como otro carácter en la
+# terminal de VS Code, así que esas teclas se escriben con su nombre.
+KEY_GLYPHS = {"updown": "↑↓", "escape": "esc"}
 
 
 class Header(Horizontal):

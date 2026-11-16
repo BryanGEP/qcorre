@@ -52,6 +52,14 @@ class ProjectTree(Tree[Row]):
     def render_label(self, node: TreeNode[Row], base_style: Style, style: Style) -> Text:
         return super().render_label(node, base_style, Style(bgcolor=style.bgcolor))
 
+    def action_select_cursor(self) -> None:
+        """Enter: sobre un proceso pide su detalle; sobre un grupo lo pliega."""
+        node = self.cursor_node
+        if node is not None and node.data is not None and node.data.process is not None:
+            self.post_message(ProjectsPanel.DetailRequested(node.data))
+        else:
+            super().action_select_cursor()
+
 
 class ProjectsPanel(Panel):
     """Árbol de proyectos → procesos. Avisa qué está seleccionado."""
@@ -62,6 +70,13 @@ class ProjectsPanel(Panel):
         """El cursor se movió a otra línea."""
 
         def __init__(self, row: Row | None) -> None:
+            super().__init__()
+            self.row = row
+
+    class DetailRequested(Message):
+        """El usuario pulsó Enter sobre un proceso."""
+
+        def __init__(self, row: Row) -> None:
             super().__init__()
             self.row = row
 

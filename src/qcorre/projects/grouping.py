@@ -163,6 +163,7 @@ def group_processes(
             reasons.append(OrphanReason.PARENT_GONE)
 
         members = sorted(everyone, key=lambda m: (m.create_time, m.pid))
+        parent = parent_of(leader)
         dev = DevProcess(
             info=leader,
             kind=kind,
@@ -170,6 +171,8 @@ def group_processes(
             ports=ports,
             pids=tuple(m.pid for m in members),
             orphan_reasons=tuple(reasons),
+            members=tuple(members),
+            parent_name=parent.name if parent is not None else None,
         )
         if root is None:
             unassigned.append(dev)

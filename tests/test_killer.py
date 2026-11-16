@@ -1,9 +1,15 @@
-"""Tests del cierre de procesos, con procesos reales de corta vida."""
+"""Tests del cierre de procesos, con procesos reales de corta vida.
+
+Los procesos de prueba llevan una marca única en su línea de comandos. Al
+terminar cada test (pase, falle o se interrumpa) se busca esa marca en todo el
+sistema y se mata lo que quede, para no dejar procesos sueltos.
+"""
 
 import os
 import subprocess
 import sys
 import time
+import uuid
 
 import psutil
 import pytest
@@ -11,12 +17,42 @@ import pytest
 from qcorre.collectors.killer import Killer, KillResult, Victim
 from qcorre.models import DevProcess, ProcessInfo, ProcessKind
 
-# Un proceso que lanza un hijo y ambos se quedan esperando.
-PARENT_CODE = (
-    "import subprocess, sys, time;"
-    "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)']);"
-    "time.sleep(120)"
-)
+# Tiempo máximo de vida de los procesos de prueba: aunque todo lo demás
+# fallara (por ejemplo, si matan a pytest a la fuerza), se cierran solos.
+LIFETIME = 30
+
+
+def parent_code(marker: str) -> str:
+    """Código de un proceso que lanza un hijo y ambos se quedan esperando."""
+    child = f"import time; time.sleep({LIFETIME})  # {marker}-hijo"
+    lines = [
+        f"import subprocess, sys, time  # {marker}-padre",
+        f"subprocess.Popen([sys.executable, '-c', {child!r}])",
+        f"time.sleep({LIFETIME})",
+    ]
+    return "\n".join(lines)
+
+
+def find_marked(marker: str) -> list[psutil.Process]:
+    """Todos los procesos del sistema cuya línea de comandos lleva la marca."""
+    found = []
+    for proc in psutil.process_iter():
+        try:
+            if any(marker in arg for arg in proc.cmdline()):
+                found.append(proc)
+        except psutil.Error:
+            continue
+    return found
+
+
+def kill_marked(marker: str) -> None:
+    procs = find_marked(marker)
+    for proc in procs:
+        try:
+            proc.kill()
+        except psutil.Error:
+            pass
+    psutil.wait_procs(procs, timeout=5)
 
 
 def as_dev(pid: int, create_time: float | None = None) -> DevProcess:
@@ -26,29 +62,42 @@ def as_dev(pid: int, create_time: float | None = None) -> DevProcess:
     return DevProcess(info=info, kind=ProcessKind.TOOL, label="python", pids=(pid,))
 
 
-def wait_for_children(pid: int, count: int = 1) -> list[psutil.Process]:
-    deadline = time.time() + 10
+def wait_for_family(pid: int, marker: str) -> list[psutil.Process]:
+    """Espera a que el hijo marcado exista y devuelve todos los descendientes.
+
+    No basta con esperar "algún hijo": en un venv de Windows ``python.exe`` es
+    un lanzador que arranca al Python real, así que el primer descendiente
+    aparece antes de que el proceso de prueba haya lanzado a su propio hijo.
+    """
+    deadline = time.time() + 15
     while time.time() < deadline:
-        children = psutil.Process(pid).children(recursive=True)
-        if len(children) >= count:
-            return children
+        if any(f"{marker}-hijo" in " ".join(_cmdline(p)) for p in find_marked(marker)):
+            return psutil.Process(pid).children(recursive=True)
         time.sleep(0.05)
     raise AssertionError("el proceso de prueba no lanzó a su hijo")
+
+
+def _cmdline(proc: psutil.Process) -> list[str]:
+    try:
+        return proc.cmdline()
+    except psutil.Error:
+        return []
 
 
 @pytest.fixture
 def family():
     """Proceso padre con un hijo; se limpia pase lo que pase."""
-    parent = subprocess.Popen([sys.executable, "-c", PARENT_CODE])
-    children = wait_for_children(parent.pid)
-    yield parent, children
-    for proc in [*children, psutil.Process(parent.pid) if parent.poll() is None else None]:
-        try:
-            if proc is not None:
-                proc.kill()
-        except psutil.Error:
-            pass
-    parent.wait(timeout=5)
+    marker = f"qcorre-test-{uuid.uuid4().hex}"
+    parent = subprocess.Popen([sys.executable, "-c", parent_code(marker)])
+    try:
+        children = wait_for_family(parent.pid, marker)
+        yield parent, children
+    finally:
+        kill_marked(marker)
+        if parent.poll() is None:
+            parent.kill()
+        parent.wait(timeout=5)
+        assert find_marked(marker) == [], "quedaron procesos de prueba vivos"
 
 
 def test_preview_incluye_al_lider_y_a_sus_descendientes(family):
@@ -89,7 +138,7 @@ def test_kill_verifica_la_fecha_de_cada_victima(family):
 
 def test_proceso_inexistente():
     gone = subprocess.Popen([sys.executable, "-c", "pass"])
-    gone.wait()
+    gone.wait(timeout=30)
     dev = as_dev(gone.pid, create_time=time.time())
     assert Killer().preview(dev) == []
     assert Killer().kill([Victim(gone.pid, "python", time.time())]) == KillResult(closed=1)

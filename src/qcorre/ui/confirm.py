@@ -54,7 +54,7 @@ class ConfirmScreen(ModalScreen[bool]):
     def _keys(self) -> Text:
         accent = theme.ERROR if self.danger else theme.ACCENT
         line = Text(justify="right")
-        line.append("⏎", style=f"bold {accent}")
+        line.append("enter", style=f"bold {accent}")
         line.append(" " + t(self.confirm_key), style=theme.FOREGROUND)
         line.append("     ")
         line.append("esc", style=f"bold {theme.ACCENT}")
@@ -66,3 +66,33 @@ class ConfirmScreen(ModalScreen[bool]):
 
     def action_cancel(self) -> None:
         self.dismiss(False)
+
+
+class InfoScreen(ModalScreen[None]):
+    """Ventana modal de solo lectura (por ejemplo, el detalle de un proceso)."""
+
+    BINDINGS = [
+        Binding("escape", "close", show=False),
+        Binding("enter", "close", show=False),
+        Binding("q", "close", show=False),
+    ]
+
+    def __init__(self, title: str, body: RenderableType) -> None:
+        super().__init__()
+        self.dialog_title = title
+        self.body = body
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="dialog"):
+            with VerticalScroll(id="dialog-body"):
+                yield Static(self.body)
+            keys = Text(justify="right")
+            keys.append("esc", style=f"bold {theme.ACCENT}")
+            keys.append(" " + t("info.close"), style=theme.MUTED)
+            yield Static(keys, id="dialog-keys")
+
+    def on_mount(self) -> None:
+        self.query_one("#dialog").border_title = self.dialog_title
+
+    def action_close(self) -> None:
+        self.dismiss(None)
