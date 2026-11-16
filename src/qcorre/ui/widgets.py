@@ -72,26 +72,25 @@ class Panel(Vertical):
 
 
 class HintBar(Static):
-    """Pie con los atajos de teclado disponibles."""
+    """Pie con los atajos de teclado disponibles, en una o más filas."""
 
-    def __init__(self, hints: list[tuple[str, str]]) -> None:
-        """``hints`` es una lista de pares (tecla, clave de traducción)."""
+    def __init__(self, rows: list[list[tuple[str, str]]]) -> None:
+        """``rows`` es una lista de filas; cada fila, pares (tecla, clave de traducción)."""
         super().__init__()
-        self.hints = hints
+        self.rows = rows
 
     def on_mount(self) -> None:
-        self.update_texts()
-
-    def set_hints(self, hints: list[tuple[str, str]]) -> None:
-        """Reemplaza los atajos mostrados (cambian según el panel activo)."""
-        self.hints = hints
+        self.styles.height = len(self.rows)
         self.update_texts()
 
     def update_texts(self) -> None:
-        line = Text(no_wrap=True, overflow="ellipsis")
-        for index, (key, label_key) in enumerate(self.hints):
-            if index:
-                line.append("   ")
-            line.append(KEY_GLYPHS.get(key, key), style=f"bold {theme.ACCENT}")
-            line.append(" " + t(label_key), style=theme.MUTED)
-        self.update(line)
+        text = Text(no_wrap=True, overflow="ellipsis")
+        for row_index, row in enumerate(self.rows):
+            if row_index:
+                text.append("\n")
+            for index, (key, label_key) in enumerate(row):
+                if index:
+                    text.append("   ")
+                text.append(KEY_GLYPHS.get(key, key), style=f"bold {theme.ACCENT}")
+                text.append(" " + t(label_key), style=theme.MUTED)
+        self.update(text)

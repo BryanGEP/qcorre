@@ -103,13 +103,13 @@ def explain_sync(status: RepoStatus) -> Line:
 def explain_fetch(status: RepoStatus, now: float, duration: str | None = None) -> Line | None:
     """De cuándo son los datos del remoto.
 
-    Los conteos de commits sin subir / sin bajar valen para la última vez que
-    se consultó el remoto; decirlo evita que el usuario crea que está al día
+    Los conteos de commits sin subir / sin bajar valen para el último
+    contacto con el remoto (fetch, pull o push); decirlo evita que el usuario crea que está al día
     cuando en realidad hace días que no consulta. ``duration`` es el tiempo
     transcurrido ya formateado (lo pone la interfaz).
     """
     if not status.remotes or status.upstream is None or status.upstream_gone:
         return None
-    if status.last_fetch is None:
+    if status.last_sync is None:
         return Line(t("git.fetch.never"), MUTED)
     return Line(t("git.fetch.when", time=duration or ""), MUTED)

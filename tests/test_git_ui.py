@@ -41,13 +41,13 @@ def panel_text(app: QcorreApp) -> str:
 
 def test_status_body_reune_frases_archivos_y_mapa():
     status = sample_status()
-    text = status_body(status, status.last_fetch + 2 * HOUR, width=60).plain
+    text = status_body(status, status.last_sync + 2 * HOUR, width=60).plain
     assert "Estás en la rama feature/pagos" in text
     assert "Tienes 3 archivos con cambios sin guardar en un commit y 1 archivo nuevo." in text
     assert "M  app/pagos.py" in text
     assert "+  app/webhooks.py" in text
     assert "Tu compu y origin se separaron: 2 commits sin subir y 1 commit sin bajar." in text
-    assert "Según la última consulta al remoto, hace 2h 00m." in text
+    assert "Según el último contacto con el remoto, hace 2h 00m." in text
 
 
 def test_el_mapa_muestra_las_dos_cajas_y_las_flechas():

@@ -14,12 +14,15 @@ from textual.worker import Worker, WorkerState
 
 from qcorre import i18n
 from qcorre.collectors.killer import Killer
+from qcorre.git import actions
+from qcorre.git.actions import ActionPlan, ActionResult
 from qcorre.git.parse import RepoStatus
-from qcorre.git.runner import GitError
+from qcorre.git.runner import GitError, GitRunner
 from qcorre.git.status import read_status
 from qcorre.i18n import t
 from qcorre.models import DevProcess, Snapshot
-from qcorre.ui.confirm import ConfirmScreen, InfoScreen
+from qcorre.ui.action_view import blocked_body, failure_body, plan_body
+from qcorre.ui.confirm import ConfirmScreen, InfoScreen, PromptScreen
 from qcorre.ui.detail_view import detail_body
 from qcorre.ui.git_panel import GitPanel
 from qcorre.ui.kill_view import KillGroup, kill_body, result_message
@@ -47,21 +50,34 @@ class QcorreApp(App[None]):
     BINDINGS = [
         Binding("k", "kill", show=False),
         Binding("K", "kill_all", show=False),
+        Binding("c", "git('commit')", show=False),
+        Binding("p", "git('push')", show=False),
+        Binding("l", "git('pull')", show=False),
+        Binding("f", "git('fetch')", show=False),
         Binding("r", "refresh", show=False),
         Binding("i", "toggle_language", show=False),
         Binding("q", "quit", show=False),
     ]
 
-    # Atajos que se muestran en el pie: (tecla, clave de traducción).
+    # Atajos que se muestran en el pie, por filas: (tecla, clave de traducción).
+    # Arriba, moverse y procesos; abajo, git y la app.
     HINTS = [
-        ("updown", "hint.move"),
-        ("tab", "hint.panel"),
-        ("enter", "hint.details"),
-        ("k", "hint.kill"),
-        ("K", "hint.kill_all"),
-        ("r", "hint.refresh"),
-        ("i", "hint.language"),
-        ("q", "hint.quit"),
+        [
+            ("updown", "hint.move"),
+            ("tab", "hint.panel"),
+            ("enter", "hint.details"),
+            ("k", "hint.kill"),
+            ("K", "hint.kill_all"),
+            ("r", "hint.refresh"),
+        ],
+        [
+            ("c", "hint.commit"),
+            ("p", "hint.push"),
+            ("l", "hint.pull"),
+            ("f", "hint.fetch"),
+            ("i", "hint.language"),
+            ("q", "hint.quit"),
+        ],
     ]
 
     def __init__(
@@ -69,6 +85,7 @@ class QcorreApp(App[None]):
         scanner: Callable[[], Snapshot] | None = None,
         killer: Killer | None = None,
         git_reader: Callable[[Path], RepoStatus] | None = None,
+        git_executor: Callable[[Path, ActionPlan], ActionResult] | None = None,
         *,
         refresh_seconds: float | None = REFRESH_SECONDS,
     ) -> None:
@@ -80,6 +97,7 @@ class QcorreApp(App[None]):
         self.scanner = scanner
         self.killer = killer or Killer()
         self.git_reader = git_reader or read_status
+        self.git_executor = git_executor or _execute_with_git
         self.refresh_seconds = refresh_seconds
         self.register_theme(QCORRE_THEME)
         self.theme = QCORRE_THEME.name
@@ -100,7 +118,9 @@ class QcorreApp(App[None]):
         yield HintBar(self.HINTS)
 
     # Atajos de la app que quedan en pausa mientras hay un diálogo abierto.
-    _PAUSED_IN_DIALOGS = frozenset({"kill", "kill_all", "refresh", "toggle_language", "quit"})
+    _PAUSED_IN_DIALOGS = frozenset(
+        {"kill", "kill_all", "refresh", "toggle_language", "quit", "git"}
+    )
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         if len(self.screen_stack) > 1 and action in self._PAUSED_IN_DIALOGS:
@@ -131,6 +151,9 @@ class QcorreApp(App[None]):
         if event.worker.group == "git":
             path, result = event.worker.result
             self.query_one(GitPanel).show_status(path, result)
+            return
+        if event.worker.group == "gitop":
+            self._action_finished(event.worker.result)
             return
         if event.worker.group != "scan":
             return
@@ -171,6 +194,71 @@ class QcorreApp(App[None]):
         # ``exclusive`` descarta la lectura anterior si el usuario ya se movió
         # a otro proyecto.
         self.run_worker(read, thread=True, group="git", exclusive=True, exit_on_error=False)
+
+    # ── Acciones de git ─────────────────────────────────────────
+
+    @work
+    async def action_git(self, action: str) -> None:
+        """Prepara una acción de git, la muestra y, si se confirma, la ejecuta."""
+        panel = self.query_one(GitPanel)
+        status, project = panel.status, panel.project
+        if status is None or project is None:
+            self.notify(t("action.no_repo"), severity="warning")
+            return
+
+        if action == actions.COMMIT:
+            plan = await self._ask_commit(status)
+        else:
+            builders = {
+                actions.PUSH: actions.plan_push,
+                actions.PULL: actions.plan_pull,
+                actions.FETCH: actions.plan_fetch,
+            }
+            plan = builders[action](status)
+            if plan.blocked:
+                self.push_screen(InfoScreen(plan.title, blocked_body(plan)))
+                return
+            dialog = ConfirmScreen(
+                plan.title, plan_body(plan), confirm_key=f"action.confirm.{action}"
+            )
+            if not await self.push_screen_wait(dialog):
+                return
+        if plan is None:
+            return
+
+        path = project.path
+        self.notify(t("action.running"), timeout=2)
+        self.run_worker(lambda: self.git_executor(path, plan), thread=True, group="gitop")
+
+    async def _ask_commit(self, status: RepoStatus) -> ActionPlan | None:
+        """Pide el mensaje del commit mostrando el comando exacto mientras se escribe."""
+        empty = actions.plan_commit(status, "")
+        if empty.blocked:
+            self.push_screen(InfoScreen(empty.title, blocked_body(empty)))
+            return None
+
+        def preview(message: str):
+            shown = message.strip() or t("action.commit.message")
+            return plan_body(actions.plan_commit(status, shown))
+
+        message = await self.push_screen_wait(
+            PromptScreen(
+                empty.title,
+                t("action.commit.prompt"),
+                preview,
+                placeholder=t("action.commit.placeholder"),
+                confirm_key="action.confirm.commit",
+                empty_key="action.commit.empty",
+            )
+        )
+        return actions.plan_commit(status, message) if message else None
+
+    def _action_finished(self, result: ActionResult) -> None:
+        if result.ok:
+            self.notify(actions.success_message(result))
+        else:
+            self.push_screen(InfoScreen(t("action.failed.title"), failure_body(result)))
+        self._load_git()
 
     # ── Detalle de un proceso ───────────────────────────────────
 
@@ -241,3 +329,8 @@ class QcorreApp(App[None]):
             update = getattr(widget, "update_texts", None)
             if callable(update):
                 update()
+
+
+def _execute_with_git(path: Path, plan: ActionPlan) -> ActionResult:
+    """Ejecuta un plan con el git del sistema en el repo ``path``."""
+    return actions.execute(plan, GitRunner(path))

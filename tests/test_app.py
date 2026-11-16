@@ -83,7 +83,7 @@ def sample_status(path=None) -> RepoStatus:
         ),
         remotes=("origin",),
         upstream_oid="9f8e7d6",
-        last_fetch=time.time() - 2 * HOUR,
+        last_sync=time.time() - 2 * HOUR,
     )
 
 
@@ -98,11 +98,15 @@ async def settle(app: QcorreApp, pilot) -> None:
     Un trabajo puede lanzar otro al terminar (el escaneo relee git), así que
     se repite hasta que no quede ninguno corriendo.
     """
-    for _ in range(10):
+    calm = 0
+    for _ in range(40):
         await app.workers.wait_for_complete()
         await pilot.pause()
-        await pilot.pause()
-        if not any(worker.is_running for worker in app.workers):
+        await pilot.pause(0.02)
+        # Hacen falta dos rondas seguidas sin trabajos: el aviso de que uno
+        # terminó (que es lo que lanza el siguiente) puede llegar con retraso.
+        calm = 0 if any(worker.is_running for worker in app.workers) else calm + 1
+        if calm >= 2:
             break
 
 

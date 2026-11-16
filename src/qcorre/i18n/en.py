@@ -77,8 +77,8 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "git.sync.to_push": {"one": "{n} commit to push", "other": "{n} commits to push"},
     "git.sync.to_pull": {"one": "{n} commit to pull", "other": "{n} commits to pull"},
     "git.sync.nothing": "nothing to push or pull",
-    "git.fetch.when": "As of the last check with the remote, {time} ago.",
-    "git.fetch.never": "The remote hasn't been checked from this machine yet.",
+    "git.fetch.when": "As of the last contact with the remote, {time} ago.",
+    "git.fetch.never": "There has been no contact with the remote from this machine yet.",
     "map.local": "Your machine",
     "map.remote": "remote",
     "map.no_branch": "no branch",
@@ -139,7 +139,130 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "detail.parent_gone": "already exited (was pid {pid})",
     "detail.ago": "{time} ago",
     "info.close": "close",
+    # Acciones de git
+    "action.commit.title": "Save changes (commit)",
+    "action.push.title": "Upload changes (push)",
+    "action.pull.title": "Download changes (pull)",
+    "action.fetch.title": "Update from remote (fetch)",
+    "action.no_repo": "Select a project with a git repository",
+    "action.blocked.heading": "Not possible right now",
+    "action.blocked.conflicts": (
+        "Some files are in conflict. Resolving them is outside what qcorre does for now."
+    ),
+    "action.blocked.no_remote": "This repo has no remote: there is nowhere to connect to.",
+    "action.blocked.no_commits": (
+        "This repo has no commits yet. Save your changes in a commit first."
+    ),
+    "action.blocked.detached": (
+        "You are not on any branch. Switch to a branch to push or pull."
+    ),
+    "action.effect.network": "Connects to the network: {where}",
+    "action.backup": "Automatic backup",
+    "action.backup.note": "If something goes wrong, your branch can be moved back to this point.",
+    "action.commands": {"one": "Exact command", "other": "Exact commands"},
+    "action.commit.blocked.clean": "Nothing to save: everything is already in commits.",
+    "action.commit.effect.files": {
+        "one": "{n} file will be saved in a new commit",
+        "other": "{n} files will be saved in a new commit (new files included)",
+    },
+    "action.commit.effect.branch": "The commit goes on branch {branch}",
+    "action.commit.effect.detached": "Careful: you are not on a branch; the commit will be loose",
+    "action.commit.effect.local": (
+        "Nothing is uploaded: the commit lives only on your machine until you push"
+    ),
+    "action.commit.prompt": "Describe what you changed",
+    "action.commit.placeholder": "e.g. fix the total calculation",
+    "action.commit.empty": "Type a message to be able to save",
+    "action.commit.message": "your message",
+    "action.push.effect.new": "Branch {branch} will be created on {remote}",
+    "action.push.effect.linked": (
+        "It will be linked: future pushes and pulls will know where to go"
+    ),
+    "action.push.effect.commits": {
+        "one": "{n} commit will be uploaded to {upstream}",
+        "other": "{n} commits will be uploaded to {upstream}",
+    },
+    "action.push.blocked.behind": {
+        "one": "{remote} has {n} commit you haven't pulled. Pull first (key l), then push.",
+        "other": "{remote} has {n} commits you haven't pulled. Pull first (key l), then push.",
+    },
+    "action.push.blocked.nothing": (
+        "No commits to push: your machine and {remote} have the same commits."
+    ),
+    "action.pull.blocked.no_upstream": (
+        "Branch {branch} isn't on the remote yet: there is nothing to pull."
+    ),
+    "action.pull.blocked.gone": (
+        "Remote branch {upstream} no longer exists: there is nowhere to pull from."
+    ),
+    "action.pull.blocked.diverged": (
+        "Your machine and {remote} have diverged: each has commits the other lacks. "
+        "Combining them (merge or rebase) is outside what qcorre does for now."
+    ),
+    "action.pull.effect.commits": {
+        "one": "{n} commit will be downloaded from {upstream}",
+        "other": "{n} commits will be downloaded from {upstream}",
+    },
+    "action.pull.effect.maybe_nothing": (
+        "As far as is known there is nothing new; the remote is asked just in case"
+    ),
+    "action.pull.effect.ff_only": (
+        "It only moves forward if nothing needs merging; otherwise git stops without changes"
+    ),
+    "action.pull.effect.changes": {
+        "one": "Your file with unsaved changes is left untouched",
+        "other": "Your {n} files with unsaved changes are left untouched",
+    },
+    "action.fetch.effect.ask": "Asks {remote} which new commits and branches exist",
+    "action.fetch.effect.safe": (
+        "Doesn't change your files or your branch: it only updates what is known about the remote"
+    ),
+    "action.confirm.commit": "save",
+    "action.confirm.push": "push",
+    "action.confirm.pull": "pull",
+    "action.confirm.fetch": "update",
+    "action.running": "Working…",
+    "action.commit.done": "Changes saved in a commit",
+    "action.push.done": "Changes uploaded to the remote",
+    "action.pull.done": "Changes downloaded from the remote",
+    "action.fetch.done": "Remote updated",
+    "action.failed.title": "Couldn't complete",
+    "action.failed.command": "Command",
+    "action.failed.output": "Git answered",
+    "action.failed.backup": "Your backup was saved at",
+    # Por qué falló una acción
+    "failure.diverged": (
+        "Your machine and the remote have diverged: can't move forward without merging. "
+        "Nothing was changed."
+    ),
+    "failure.overwrite": (
+        "You have unsaved changes in files the remote also changed. "
+        "Save them in a commit and try again. Nothing was changed."
+    ),
+    "failure.rejected": (
+        "The remote has commits you haven't pulled, so it rejected the push. "
+        "Pull first (key l)."
+    ),
+    "failure.auth": (
+        "The remote didn't accept your credentials (or none are saved). "
+        "Try a push from your terminal to sign in."
+    ),
+    "failure.network": "Couldn't reach the remote. Check your internet connection.",
+    "failure.identity": (
+        "Git doesn't know who you are. Set your name and email:\n"
+        'git config --global user.name "Your Name"\n'
+        'git config --global user.email "you@example.com"'
+    ),
+    "failure.nothing_to_commit": "There were no changes to save.",
+    "failure.locked": (
+        "Another program is using the repo right now. Wait a moment and retry."
+    ),
+    "failure.unknown": "Git couldn't complete the action.",
     # Atajos del pie
+    "hint.commit": "commit",
+    "hint.push": "push",
+    "hint.pull": "pull",
+    "hint.fetch": "update",
     "hint.details": "details",
     "hint.move": "move",
     "hint.kill": "kill",

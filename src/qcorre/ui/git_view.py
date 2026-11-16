@@ -55,7 +55,7 @@ def status_body(status: RepoStatus, now: float, *, width: int = 60, max_files: i
     if diagram is not None:
         text.append("\n\n")
         text.append_text(diagram)
-    duration = short_duration(now - status.last_fetch) if status.last_fetch else None
+    duration = short_duration(now - status.last_sync) if status.last_sync else None
     fetch = explain.explain_fetch(status, now, duration)
     if fetch is not None:
         text.append("\n")

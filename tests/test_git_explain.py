@@ -160,10 +160,10 @@ def test_sin_commits_o_sin_rama_no_habla_de_subir():
 
 
 def test_ultima_consulta_al_remoto():
-    line = explain.explain_fetch(status(last_fetch=1000.0), now=8200.0, duration="2h 00m")
-    assert line.text == "Según la última consulta al remoto, hace 2h 00m."
+    line = explain.explain_fetch(status(last_sync=1000.0), now=8200.0, duration="2h 00m")
+    assert line.text == "Según el último contacto con el remoto, hace 2h 00m."
     assert explain.explain_fetch(status(), now=0).text == (
-        "Aún no se ha consultado el remoto desde esta compu."
+        "Aún no ha habido contacto con el remoto desde esta compu."
     )
     # Sin rama remota no hay conteos que matizar.
     assert explain.explain_fetch(status(upstream=None), now=0) is None

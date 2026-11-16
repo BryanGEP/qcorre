@@ -67,7 +67,8 @@ class RepoStatus:
 
     remotes: tuple[str, ...] = ()
     upstream_oid: str | None = None
-    last_fetch: float | None = None  # cuándo se consultó el remoto por última vez
+    remote_url: str | None = None  # dirección del remoto (sin credenciales)
+    last_sync: float | None = None  # último contacto con el remoto (fetch, pull o push)
 
     # ── Rama ────────────────────────────────────────────────────
 
@@ -100,6 +101,16 @@ class RepoStatus:
             if self.upstream.startswith(remote + "/"):
                 return remote
         return self.upstream.split("/", 1)[0]
+
+    @property
+    def push_remote(self) -> str | None:
+        """Remoto con el que habla esta rama: el de su upstream o, si aún no
+        tiene, ``origin`` (o el primero que haya)."""
+        if self.upstream is not None:
+            return self.remote_name
+        if not self.remotes:
+            return None
+        return "origin" if "origin" in self.remotes else self.remotes[0]
 
     @property
     def remote_branch(self) -> str | None:
