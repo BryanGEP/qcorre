@@ -1,0 +1,71 @@
+/* Estilos de qcorre. Los colores vienen del tema definido en theme.py. */
+
+Screen {
+    background: $background;
+    color: $foreground;
+    layout: vertical;
+}
+
+/* ── Cabecera ─────────────────────────────────────────────── */
+
+#header {
+    width: 100%;
+    height: 2;
+    padding: 1 2 0 2;
+}
+
+#brand {
+    width: 1fr;
+}
+
+#status {
+    width: auto;
+}
+
+/* ── Paneles ──────────────────────────────────────────────── */
+
+#body {
+    width: 100%;
+    height: 1fr;
+    padding: 0 1;
+}
+
+Panel {
+    border: round $qc-border;
+    border-title-color: $qc-muted;
+    padding: 0 1;
+    background: $background;
+}
+
+Panel:focus {
+    border: round $primary;
+    border-title-color: $primary;
+    border-title-style: bold;
+}
+
+#projects {
+    width: 36%;
+    min-width: 32;
+    max-width: 50;
+}
+
+#git {
+    width: 1fr;
+}
+
+.empty {
+    width: 100%;
+    height: 100%;
+    content-align: center middle;
+    text-align: center;
+    color: $qc-muted;
+}
+
+/* ── Pie con atajos ───────────────────────────────────────── */
+
+HintBar {
+    dock: bottom;
+    height: 1;
+    padding: 0 2;
+    background: $surface;
+}

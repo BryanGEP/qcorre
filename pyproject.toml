@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qcorre"
+dynamic = ["version"]
+description = "¿Qué corre en tu compu? Panel del desarrollador en la terminal: procesos por proyecto y git en lenguaje humano."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Bryan Gael Esquivel Pérez" }]
+keywords = ["tui", "textual", "git", "procesos", "developer-tools"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Version Control :: Git",
+]
+dependencies = [
+    "textual>=8.0,<9",
+    "psutil>=5.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=1.0",
+]
+
+[project.scripts]
+qcorre = "qcorre.cli:main"
+
+[tool.hatch.version]
+path = "src/qcorre/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qcorre"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

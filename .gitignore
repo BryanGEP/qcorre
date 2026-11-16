@@ -1,0 +1,15 @@
+# Entornos virtuales
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Empaquetado
+dist/
+build/
+
+# Configuración local de Claude Code
+.claude/settings.local.json
