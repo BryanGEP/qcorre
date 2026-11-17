@@ -57,7 +57,11 @@ MESSAGES: dict[str, str | dict[str, str]] = {
         "other": "{n} ya están preparados para el próximo commit (git add).",
     },
     "git.conflicts.note": "Resolver conflictos queda fuera de lo que qcorre hace por ahora.",
-    "git.files.more": {"one": "… y {n} más", "other": "… y {n} más"},
+    "git.files.more": {
+        "one": "… y {n} más (tecla a para verlos todos)",
+        "other": "… y {n} más (tecla a para verlos todos)",
+    },
+    "git.files.less": "tecla a para ver menos",
     "list.and": " y ",
     # Git: tu compu y el remoto
     "git.sync.no_remote": "Este repo no tiene remoto: solo existe en tu compu.",
@@ -243,8 +247,9 @@ MESSAGES: dict[str, str | dict[str, str]] = {
         "Baja primero (tecla l)."
     ),
     "failure.auth": (
-        "El remoto no aceptó tus credenciales (o no hay ninguna guardada). "
-        "Prueba un push desde tu terminal para iniciar sesión."
+        "Git necesita que inicies sesión con el remoto. qcorre no pide "
+        "contraseñas: haz un push o un pull desde tu terminal para iniciar "
+        "sesión y vuelve a intentarlo aquí."
     ),
     "failure.network": "No se pudo llegar al remoto. Revisa tu conexión a internet.",
     "failure.identity": (
@@ -257,7 +262,184 @@ MESSAGES: dict[str, str | dict[str, str]] = {
         "Otro programa está usando el repo en este momento. Espera un momento y reintenta."
     ),
     "failure.unknown": "Git no pudo completar la acción.",
+    # Commit: archivos que entran y avisos
+    "commit.files": {"one": "Entra {n} archivo", "other": "Entran {n} archivos"},
+    "commit.sensitive.title": {
+        "one": "Ojo: este archivo parece contener secretos",
+        "other": "Ojo: estos archivos parecen contener secretos",
+    },
+    "commit.sensitive.advice": (
+        "Si no deben subirse, cancela (esc) y agrégalos a tu .gitignore antes de guardar."
+    ),
+    "commit.scroll": "RePág / AvPág recorren la lista",
+    # Ramas
+    "action.switch.title": "Cambiar a la rama {branch}",
+    "action.switch.blocked.current": "Ya estás en la rama {branch}.",
+    "action.switch.effect.move": "Pasas de {origin} a {branch}",
+    "action.switch.effect.track": "Se crea la rama local {branch}, enlazada a {upstream}",
+    "action.switch.effect.files": "Tus archivos pasan a verse como están en esa rama",
+    "action.switch.effect.changes": {
+        "one": (
+            "Tu archivo con cambios sin guardar se viene contigo; si choca con la otra "
+            "rama, git se detiene sin cambiar nada"
+        ),
+        "other": (
+            "Tus {n} archivos con cambios sin guardar se vienen contigo; si chocan con "
+            "la otra rama, git se detiene sin cambiar nada"
+        ),
+    },
+    "action.branch.title": "Crear una rama nueva",
+    "action.branch.prompt": "Nombre de la rama nueva",
+    "action.branch.placeholder": "p. ej. feat/buscador",
+    "action.branch.invalid.empty": "Escribe un nombre para la rama",
+    "action.branch.invalid.chars": (
+        "El nombre no puede llevar espacios ni estos símbolos: ~ ^ : ? * [ \\"
+    ),
+    "action.branch.invalid.format": (
+        "Ese nombre no sirve para una rama (revisa puntos, barras y guiones al inicio o al final)"
+    ),
+    "action.branch.effect.create": (
+        "Se crea la rama {branch} a partir de {origin} y te cambias a ella"
+    ),
+    "action.branch.effect.changes": {
+        "one": "Tu archivo con cambios sin guardar se viene contigo",
+        "other": "Tus {n} archivos con cambios sin guardar se vienen contigo",
+    },
+    "action.branch.effect.local": "Solo existe en tu compu hasta que la subas (tecla p)",
+    "action.delete.title": "Borrar la rama {branch}",
+    "action.delete.blocked.current": (
+        "No se puede borrar la rama en la que estás. Cámbiate a otra primero."
+    ),
+    "action.delete.blocked.remote": (
+        "Esa rama solo existe en el remoto: aquí no hay nada que borrar."
+    ),
+    "action.delete.blocked.not_gone": (
+        "Su rama remota todavía existe. qcorre solo ofrece borrar ramas cuya rama "
+        "remota ya fue borrada."
+    ),
+    "action.delete.blocked.unmerged": (
+        "La rama {branch} tiene commits que no están en {here}: borrarla perdería ese "
+        "trabajo, así que no se ofrece. Si su PR ya se mergeó, cámbiate a la rama "
+        "principal, baja los cambios (tecla l) y vuelve a intentarlo."
+    ),
+    "action.delete.effect.local": (
+        "Se borra la rama {branch} de tu compu (su rama remota ya no existe)"
+    ),
+    "action.delete.effect.merged": "Todos sus commits ya están en {here}: no se pierde trabajo",
+    "action.delete.effect.safe": (
+        "Se usa «git branch -d», que se niega a borrar si quedara algo sin mergear"
+    ),
+    # Deshacer
+    "action.undo.title": "Deshacer el último commit",
+    "action.undo.blocked.no_commits": "Este repo todavía no tiene commits.",
+    "action.undo.blocked.first": (
+        "Es el primer commit del repo: no hay un commit anterior al cual volver."
+    ),
+    "action.undo.blocked.pushed": (
+        "El último commit ya está subido al remoto. Deshacerlo obligaría a reescribir "
+        "el remoto (push forzado), y eso qcorre no lo hace."
+    ),
+    "action.undo.effect.commit": 'Se deshace el commit "{subject}" ({oid})',
+    "action.undo.effect.keep": "Sus cambios no se pierden: quedan como cambios sin guardar",
+    "action.undo.effect.local": "Solo cambia tu compu: ese commit no está en el remoto",
+    "action.discard.title": "Descartar los cambios sin guardar",
+    "action.discard.blocked.nothing": (
+        "No hay cambios que descartar en archivos que git ya sigue."
+    ),
+    "action.discard.effect.files": {
+        "one": (
+            "Se descartan los cambios de {n} archivo: vuelve a como estaba en el último commit"
+        ),
+        "other": (
+            "Se descartan los cambios de {n} archivos: vuelven a como estaban en el "
+            "último commit"
+        ),
+    },
+    "action.discard.effect.added": (
+        "Los archivos nuevos que ya habías preparado (git add) se borran del disco; "
+        "quedan en el respaldo"
+    ),
+    "action.discard.effect.untracked": {
+        "one": "Tu archivo nuevo que git aún no sigue no se toca",
+        "other": "Tus {n} archivos nuevos que git aún no sigue no se tocan",
+    },
+    "action.discard.effect.backup": (
+        "Antes se guarda un respaldo de esos cambios, por si te arrepientes"
+    ),
+    "action.restore.title": "Volver a un respaldo",
+    "action.restore.blocked.branch": (
+        "Este respaldo es de la rama {branch}. Cámbiate a esa rama (tecla b) para restaurarlo."
+    ),
+    "action.restore.effect.move": (
+        "La rama {branch} vuelve al commit {oid}, donde estaba antes de {operation} ({when})"
+    ),
+    "action.restore.effect.changes": (
+        "También se recuperan los cambios sin guardar de ese momento"
+    ),
+    "action.restore.effect.replace": {
+        "one": "Tu archivo con cambios sin guardar de ahora se reemplaza",
+        "other": "Tus {n} archivos con cambios sin guardar de ahora se reemplazan",
+    },
+    "action.restore.effect.backup": "Antes se guarda un respaldo de cómo está todo ahora",
+    "action.confirm.switch": "cambiar",
+    "action.confirm.branch": "crear",
+    "action.confirm.delete": "borrar",
+    "action.confirm.undo": "deshacer",
+    "action.confirm.discard": "descartar",
+    "action.confirm.restore": "restaurar",
+    "action.switch.done": "Cambiaste de rama",
+    "action.branch.done": "Rama creada: ya estás en ella",
+    "action.delete.done": "Rama borrada",
+    "action.undo.done": "Commit deshecho: sus cambios siguen aquí, sin guardar",
+    "action.discard.done": "Cambios descartados (quedó un respaldo)",
+    "action.restore.done": "Respaldo restaurado",
+    "action.pull.nothing": "Ya estabas al día: no había nada que bajar",
+    "failure.unmerged": (
+        "Git no la considera mergeada (pasa cuando el PR se mergeó con squash). "
+        "No se borró nada."
+    ),
+    "failure.exists": "Ya existe una rama con ese nombre.",
+    "failure.branch_name": "Git no acepta ese nombre de rama.",
+    "backup.op.pull": "bajar cambios",
+    "backup.op.switch": "cambiar de rama",
+    "backup.op.undo": "deshacer un commit",
+    "backup.op.discard": "descartar cambios",
+    "backup.op.restore": "restaurar un respaldo",
+    # Vista de ramas
+    "branches.title": "Ramas",
+    "branches.local": "En tu compu",
+    "branches.remote": "Solo en el remoto",
+    "branches.remote.asof": "según el último contacto, hace {time}",
+    "branches.remote.never": "aún sin contacto con el remoto",
+    "branches.current": "estás aquí",
+    "branches.even": "al día",
+    "branches.local_only": "solo en tu compu",
+    "branches.gone": "su rama remota ya no existe",
+    "branches.merged": "ya mergeada",
+    "branches.unmerged": "con trabajo sin mergear aquí",
+    "branches.remote.hint": "al elegirla se crea la rama local que la sigue",
+    "branches.key.switch": "cambiar",
+    "branches.key.new": "nueva",
+    "branches.key.delete": "borrar",
+    "branches.delete.pick": "Elige una rama para borrarla",
+    # Vista de deshacer
+    "undo.title": "Deshacer",
+    "undo.actions": "Qué quieres deshacer",
+    "undo.commit": "El último commit",
+    "undo.commit.none": "no hay commits",
+    "undo.discard": "Los cambios sin guardar",
+    "undo.discard.count": {"one": "{n} archivo", "other": "{n} archivos"},
+    "undo.discard.none": "no hay cambios",
+    "undo.backups": "Volver a un respaldo",
+    "undo.backups.none": "Aún no hay respaldos: se crean solos antes de las acciones riesgosas",
+    "undo.backup.item": "antes de {operation}",
+    "undo.backup.branch": "rama {branch}",
+    "undo.backup.changes": "con cambios sin guardar",
+    "undo.key.select": "elegir",
+    "picker.close": "cerrar",
     # Atajos del pie
+    "hint.branches": "ramas",
+    "hint.undo": "deshacer",
     "hint.commit": "commit",
     "hint.push": "push",
     "hint.pull": "pull",

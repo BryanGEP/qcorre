@@ -155,7 +155,11 @@ def failed(stderr: str, action: str = actions.PULL) -> ActionResult:
         ("fatal: Not possible to fast-forward, aborting.", "se separaron"),
         ("error: Your local changes would be overwritten by merge", "cambios sin guardar"),
         (" ! [rejected] main -> main (fetch first)", "rechazó la subida"),
-        ("fatal: Authentication failed for 'https://...'", "credenciales"),
+        ("fatal: Authentication failed for 'https://...'", "inicies sesión con el remoto"),
+        ("fatal: could not read Username: terminal prompts disabled", "inicies sesión"),
+        ("git@github.com: Permission denied (publickey).", "inicies sesión"),
+        ("error: The branch 'x' is not fully merged.", "no la considera mergeada"),
+        ("fatal: a branch named 'x' already exists", "Ya existe una rama"),
         ("fatal: unable to access 'https://x/': Could not resolve host: x", "conexión"),
         ("Author identity unknown\n*** Please tell me who you are.", "Git no sabe quién eres"),
         ("fatal: Unable to create '.git/index.lock': File exists.", "Otro programa"),
@@ -259,8 +263,10 @@ def test_pull_real_avanza_crea_respaldo_y_conserva_cambios(tmp_path, repo, remot
     assert (repo / "README.md").read_text(encoding="utf-8") == "mi cambio sin guardar\n"
 
     # El respaldo apunta a donde estaba la rama antes de bajar.
-    assert result.backup is not None and result.backup.ref == plan.backup_ref
-    assert git(repo, "rev-parse", plan.backup_ref).strip() == head_before
+    assert result.backup is not None and result.backup.base == plan.backup_ref
+    assert result.backup.ref == plan.backup_ref + "/rama/main"
+    assert result.backup.branch == "main"
+    assert git(repo, "rev-parse", result.backup.ref).strip() == head_before
     # Y hay una foto de los cambios sin guardar.
     assert result.backup.changes_ref is not None
     snapshot = git(repo, "show", f"{result.backup.changes_ref}:README.md")
@@ -282,7 +288,9 @@ def test_pull_real_con_ramas_separadas_falla_sin_cambiar_nada(tmp_path, repo, re
     assert not result.ok
     assert "se separaron" in explain_failure(result)
     assert git(repo, "rev-parse", "HEAD") == head
-    assert result.backup is not None  # el respaldo quedó de todos modos
+    # No cambió nada ni había cambios sin guardar: el respaldo sobraba y se borró.
+    assert result.backup is None and result.unchanged
+    assert git(repo, "for-each-ref", "refs/qcorre") == ""
 
 
 def test_un_plan_bloqueado_no_ejecuta_nada(repo):  # noqa: F811

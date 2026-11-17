@@ -33,6 +33,7 @@ class GitPanel(Panel):
         self.project: Project | None = None
         self._orphans = False
         self._results: dict[Path, RepoStatus | GitError] = {}
+        self._expanded = False  # ¿se listan todos los archivos?
 
     def compose(self) -> ComposeResult:
         yield Static(classes="empty")
@@ -45,8 +46,15 @@ class GitPanel(Panel):
         result = self._results.get(self.project.path) if self.project else None
         return result if isinstance(result, RepoStatus) else None
 
+    def toggle_files(self) -> None:
+        """Alterna entre ver los primeros archivos y verlos todos."""
+        self._expanded = not self._expanded
+        self.update_texts()
+
     def show_project(self, project: Project | None, *, orphans: bool = False) -> None:
         """Cambia el proyecto mostrado (``orphans`` = el grupo de huérfanos)."""
+        if project is None or self.project is None or project.path != self.project.path:
+            self._expanded = False  # cada proyecto empieza con la lista resumida
         self.project = project
         self._orphans = orphans
         self.update_texts()
@@ -82,7 +90,7 @@ class GitPanel(Panel):
             # Se usa el ancho del panel (siempre visible) menos el margen del
             # área con scroll, que puede estar oculta y medir cero.
             width = max(30, self.content_size.width - 2)
-            self._body(status_body(result, time.time(), width=width))
+            self._body(status_body(result, time.time(), width=width, expanded=self._expanded))
 
     # ── Internos ────────────────────────────────────────────────
 

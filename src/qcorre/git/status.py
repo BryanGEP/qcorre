@@ -10,7 +10,9 @@ from qcorre.git.parse import RepoStatus, parse_status
 from qcorre.git.runner import GitRunner
 
 # Comando principal: una sola llamada da rama, remoto, conteos y archivos.
-STATUS_ARGS = ("status", "--porcelain=v2", "--branch", "-z")
+# Los archivos nuevos se listan uno por uno (no por carpeta): así el conteo y
+# la lista coinciden con lo que un `git add -A` metería en el commit.
+STATUS_ARGS = ("status", "--porcelain=v2", "--branch", "-z", "--untracked-files=all")
 
 # Usuario y contraseña incrustados en una URL: https://usuario:token@host/...
 _URL_CREDENTIALS = re.compile(r"^(\w+://)[^/@]+@")
@@ -39,11 +41,23 @@ def read_status(repo: str | Path, runner: GitRunner | None = None) -> RepoStatus
         if result.ok:
             remote_url = hide_credentials(result.stdout.strip()) or None
 
+    head_subject: str | None = None
+    has_parent = False
+    if status.has_commits:
+        result = git.run("log", "-2", "--format=%s")
+        if result.ok:
+            subjects = result.stdout.splitlines()
+            head_subject = subjects[0] if subjects else None
+            has_parent = len(subjects) > 1
+
+    upstream = status.upstream if status.upstream and not status.upstream_gone else None
     return replace(
         status,
         upstream_oid=upstream_oid,
         remote_url=remote_url,
-        last_sync=_last_sync(git, status) if status.remotes else None,
+        head_subject=head_subject,
+        has_parent=has_parent,
+        last_sync=last_contact(git, upstream) if status.remotes else None,
     )
 
 
@@ -52,8 +66,8 @@ def hide_credentials(url: str) -> str:
     return _URL_CREDENTIALS.sub(r"\1", url)
 
 
-def _last_sync(git: GitRunner, status: RepoStatus) -> float | None:
-    """Cuándo fue el último contacto con el remoto para esta rama.
+def last_contact(git: GitRunner, upstream: str | None = None) -> float | None:
+    """Cuándo fue el último contacto con el remoto (para la rama ``upstream``).
 
     Cuenta lo más reciente entre:
 
@@ -64,8 +78,8 @@ def _last_sync(git: GitRunner, status: RepoStatus) -> float | None:
       remoto son de hace horas.
     """
     args = ["rev-parse", "--git-path", "FETCH_HEAD"]
-    if status.upstream and not status.upstream_gone:
-        args += ["--git-path", f"logs/refs/remotes/{status.upstream}"]
+    if upstream:
+        args += ["--git-path", f"logs/refs/remotes/{upstream}"]
     result = git.run(*args)
     if not result.ok:
         return None

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -16,16 +18,34 @@ from qcorre import i18n
 from qcorre.collectors.killer import Killer
 from qcorre.git import actions
 from qcorre.git.actions import ActionPlan, ActionResult
+from qcorre.git.backup import Backup, list_backups
+from qcorre.git.branches import BranchList, read_branches
 from qcorre.git.parse import RepoStatus
 from qcorre.git.runner import GitError, GitRunner
 from qcorre.git.status import read_status
 from qcorre.i18n import t
 from qcorre.models import DevProcess, Snapshot
-from qcorre.ui.action_view import blocked_body, failure_body, plan_body
+from qcorre.ui.action_view import (
+    blocked_body,
+    blocked_reason,
+    commit_body,
+    failure_body,
+    plan_body,
+)
+from qcorre.ui.branch_view import (
+    DISCARD,
+    UNDO_COMMIT,
+    backup_age,
+    branch_choices,
+    find_backup,
+    find_branch,
+    undo_choices,
+)
 from qcorre.ui.confirm import ConfirmScreen, InfoScreen, PromptScreen
 from qcorre.ui.detail_view import detail_body
 from qcorre.ui.git_panel import GitPanel
 from qcorre.ui.kill_view import KillGroup, kill_body, result_message
+from qcorre.ui.picker import PickerKey, PickerScreen
 from qcorre.ui.projects_panel import ProjectsPanel
 from qcorre.ui.theme import QCORRE_THEME
 from qcorre.ui.widgets import Header, HintBar
@@ -54,6 +74,9 @@ class QcorreApp(App[None]):
         Binding("p", "git('push')", show=False),
         Binding("l", "git('pull')", show=False),
         Binding("f", "git('fetch')", show=False),
+        Binding("b", "branches", show=False),
+        Binding("u", "undo", show=False),
+        Binding("a", "toggle_files", show=False),
         Binding("r", "refresh", show=False),
         Binding("i", "toggle_language", show=False),
         Binding("q", "quit", show=False),
@@ -75,6 +98,8 @@ class QcorreApp(App[None]):
             ("p", "hint.push"),
             ("l", "hint.pull"),
             ("f", "hint.fetch"),
+            ("b", "hint.branches"),
+            ("u", "hint.undo"),
             ("i", "hint.language"),
             ("q", "hint.quit"),
         ],
@@ -86,6 +111,8 @@ class QcorreApp(App[None]):
         killer: Killer | None = None,
         git_reader: Callable[[Path], RepoStatus] | None = None,
         git_executor: Callable[[Path, ActionPlan], ActionResult] | None = None,
+        branch_reader: Callable[[Path], BranchList] | None = None,
+        backup_reader: Callable[[Path], list[Backup]] | None = None,
         *,
         refresh_seconds: float | None = REFRESH_SECONDS,
     ) -> None:
@@ -98,6 +125,8 @@ class QcorreApp(App[None]):
         self.killer = killer or Killer()
         self.git_reader = git_reader or read_status
         self.git_executor = git_executor or _execute_with_git
+        self.branch_reader = branch_reader or read_branches
+        self.backup_reader = backup_reader or _read_backups
         self.refresh_seconds = refresh_seconds
         self.register_theme(QCORRE_THEME)
         self.theme = QCORRE_THEME.name
@@ -119,7 +148,17 @@ class QcorreApp(App[None]):
 
     # Atajos de la app que quedan en pausa mientras hay un diálogo abierto.
     _PAUSED_IN_DIALOGS = frozenset(
-        {"kill", "kill_all", "refresh", "toggle_language", "quit", "git"}
+        {
+            "kill",
+            "kill_all",
+            "refresh",
+            "toggle_language",
+            "quit",
+            "git",
+            "branches",
+            "undo",
+            "toggle_files",
+        }
     )
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
@@ -197,36 +236,48 @@ class QcorreApp(App[None]):
 
     # ── Acciones de git ─────────────────────────────────────────
 
+    def _repo(self) -> tuple[RepoStatus, Path] | None:
+        """Estado y carpeta del repo seleccionado (avisa si no hay ninguno)."""
+        panel = self.query_one(GitPanel)
+        if panel.status is None or panel.project is None:
+            self.notify(t("action.no_repo"), severity="warning")
+            return None
+        return panel.status, panel.project.path
+
     @work
     async def action_git(self, action: str) -> None:
         """Prepara una acción de git, la muestra y, si se confirma, la ejecuta."""
-        panel = self.query_one(GitPanel)
-        status, project = panel.status, panel.project
-        if status is None or project is None:
-            self.notify(t("action.no_repo"), severity="warning")
+        repo = self._repo()
+        if repo is None:
             return
-
+        status, path = repo
         if action == actions.COMMIT:
             plan = await self._ask_commit(status)
-        else:
-            builders = {
-                actions.PUSH: actions.plan_push,
-                actions.PULL: actions.plan_pull,
-                actions.FETCH: actions.plan_fetch,
-            }
-            plan = builders[action](status)
-            if plan.blocked:
-                self.push_screen(InfoScreen(plan.title, blocked_body(plan)))
-                return
-            dialog = ConfirmScreen(
-                plan.title, plan_body(plan), confirm_key=f"action.confirm.{action}"
-            )
-            if not await self.push_screen_wait(dialog):
-                return
-        if plan is None:
+            if plan is not None:
+                self._run_plan(plan, path)
             return
+        builders = {
+            actions.PUSH: actions.plan_push,
+            actions.PULL: actions.plan_pull,
+            actions.FETCH: actions.plan_fetch,
+        }
+        await self._confirm_and_run(builders[action](status), path)
 
-        path = project.path
+    async def _confirm_and_run(self, plan: ActionPlan, path: Path) -> None:
+        """Muestra la vista previa del plan y lo ejecuta si el usuario confirma."""
+        if plan.blocked:
+            self.push_screen(InfoScreen(plan.title, blocked_body(plan)))
+            return
+        dialog = ConfirmScreen(
+            plan.title,
+            plan_body(plan),
+            confirm_key=f"action.confirm.{plan.action}",
+            danger=plan.danger,
+        )
+        if await self.push_screen_wait(dialog):
+            self._run_plan(plan, path)
+
+    def _run_plan(self, plan: ActionPlan, path: Path) -> None:
         self.notify(t("action.running"), timeout=2)
         self.run_worker(lambda: self.git_executor(path, plan), thread=True, group="gitop")
 
@@ -237,9 +288,9 @@ class QcorreApp(App[None]):
             self.push_screen(InfoScreen(empty.title, blocked_body(empty)))
             return None
 
-        def preview(message: str):
+        def preview(message: str) -> Text:
             shown = message.strip() or t("action.commit.message")
-            return plan_body(actions.plan_commit(status, shown))
+            return commit_body(status, actions.plan_commit(status, shown))
 
         message = await self.push_screen_wait(
             PromptScreen(
@@ -248,7 +299,7 @@ class QcorreApp(App[None]):
                 preview,
                 placeholder=t("action.commit.placeholder"),
                 confirm_key="action.confirm.commit",
-                empty_key="action.commit.empty",
+                validate=lambda value: None if value else t("action.commit.empty"),
             )
         )
         return actions.plan_commit(status, message) if message else None
@@ -259,6 +310,107 @@ class QcorreApp(App[None]):
         else:
             self.push_screen(InfoScreen(t("action.failed.title"), failure_body(result)))
         self._load_git()
+
+    def action_toggle_files(self) -> None:
+        """Alterna entre ver los primeros archivos con cambios y verlos todos."""
+        self.query_one(GitPanel).toggle_files()
+
+    # ── Ramas ───────────────────────────────────────────────────
+
+    @work
+    async def action_branches(self) -> None:
+        """Vista de ramas: cambiar a una, crear una nueva o borrar una ya mergeada."""
+        repo = self._repo()
+        if repo is None:
+            return
+        status, path = repo
+        try:
+            branches = await asyncio.to_thread(self.branch_reader, path)
+        except GitError as error:
+            self.notify(error.detail or t("git.error.failed"), severity="error")
+            return
+
+        picked = await self.push_screen_wait(
+            PickerScreen(
+                t("branches.title"),
+                branch_choices(branches, time.time()),
+                select_key="branches.key.switch",
+                keys=(
+                    PickerKey("n", "new", "branches.key.new", needs_choice=False),
+                    PickerKey("d", "delete", "branches.key.delete"),
+                ),
+            )
+        )
+        if picked is None:
+            return
+        action, choice = picked
+        if action == "new":
+            await self._ask_new_branch(status, path)
+            return
+        branch = find_branch(branches, choice or "")
+        if branch is None:
+            return
+        if action == "delete":
+            plan = actions.plan_delete_branch(status, branch)
+        else:
+            plan = actions.plan_switch(status, branch)
+        await self._confirm_and_run(plan, path)
+
+    async def _ask_new_branch(self, status: RepoStatus, path: Path) -> None:
+        """Pide el nombre de la rama nueva, validándolo mientras se escribe."""
+
+        def preview(name: str) -> Text:
+            plan = actions.plan_new_branch(status, name)
+            return blocked_reason(plan) if plan.blocked else plan_body(plan)
+
+        name = await self.push_screen_wait(
+            PromptScreen(
+                t("action.branch.title"),
+                t("action.branch.prompt"),
+                preview,
+                placeholder=t("action.branch.placeholder"),
+                confirm_key="action.confirm.branch",
+                validate=actions.branch_name_problem,
+            )
+        )
+        if name:
+            self._run_plan(actions.plan_new_branch(status, name), path)
+
+    # ── Deshacer y respaldos ────────────────────────────────────
+
+    @work
+    async def action_undo(self) -> None:
+        """Menú de deshacer: último commit, cambios sin guardar o volver a un respaldo."""
+        repo = self._repo()
+        if repo is None:
+            return
+        status, path = repo
+        try:
+            backups = await asyncio.to_thread(self.backup_reader, path)
+        except GitError:
+            backups = []
+
+        now = time.time()
+        picked = await self.push_screen_wait(
+            PickerScreen(
+                t("undo.title"),
+                undo_choices(status, backups, now),
+                select_key="undo.key.select",
+            )
+        )
+        if picked is None or picked[1] is None:
+            return
+        choice = picked[1]
+        if choice == UNDO_COMMIT:
+            plan = actions.plan_undo_commit(status)
+        elif choice == DISCARD:
+            plan = actions.plan_discard(status)
+        else:
+            backup = find_backup(backups, choice)
+            if backup is None:
+                return
+            plan = actions.plan_restore(status, backup, when=backup_age(backup, now))
+        await self._confirm_and_run(plan, path)
 
     # ── Detalle de un proceso ───────────────────────────────────
 
@@ -334,3 +486,8 @@ class QcorreApp(App[None]):
 def _execute_with_git(path: Path, plan: ActionPlan) -> ActionResult:
     """Ejecuta un plan con el git del sistema en el repo ``path``."""
     return actions.execute(plan, GitRunner(path))
+
+
+def _read_backups(path: Path) -> list[Backup]:
+    """Respaldos del repo ``path``, con el git del sistema."""
+    return list_backups(GitRunner(path))

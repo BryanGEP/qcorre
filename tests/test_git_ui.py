@@ -113,7 +113,11 @@ def test_la_lista_de_archivos_se_corta_y_ordena_por_urgencia():
     plain = file_list(files, max_files=5).plain
     lines = plain.splitlines()
     assert lines[0].strip() == "!  conflicto.py"  # lo urgente primero
-    assert lines[-1].strip() == "… y 9 más"
+    assert lines[-1].strip() == "… y 9 más (tecla a para verlos todos)"
+    # Sin límite se listan todos, con la pista para volver a resumir.
+    full = file_list(files, max_files=None).plain.splitlines()
+    assert len(full) == len(files) + 1
+    assert full[-1].strip() == "tecla a para ver menos"
     assert "antiguo.py → viejo.py" in file_list(files, max_files=20).plain
 
 

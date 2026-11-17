@@ -108,7 +108,12 @@ class PromptScreen(ModalScreen[str | None]):
     confirma (solo si hay texto) y Esc cancela.
     """
 
-    BINDINGS = [Binding("escape", "cancel", show=False)]
+    BINDINGS = [
+        Binding("escape", "cancel", show=False),
+        # El foco está en el campo de texto: estas teclas recorren la vista previa.
+        Binding("pagedown", "scroll_body(1)", show=False),
+        Binding("pageup", "scroll_body(-1)", show=False),
+    ]
 
     def __init__(
         self,
@@ -118,15 +123,16 @@ class PromptScreen(ModalScreen[str | None]):
         *,
         placeholder: str = "",
         confirm_key: str = "confirm.accept",
-        empty_key: str = "confirm.accept",
+        validate: Callable[[str], str | None] | None = None,
     ) -> None:
+        """``validate`` recibe el texto y devuelve por qué no sirve (o ``None``)."""
         super().__init__()
         self.dialog_title = title
         self.prompt = prompt
         self.preview = preview
         self.placeholder = placeholder
         self.confirm_key = confirm_key
-        self.empty_key = empty_key
+        self.validate = validate
 
     def compose(self) -> ComposeResult:
         with Vertical(id="dialog"):
@@ -154,10 +160,18 @@ class PromptScreen(ModalScreen[str | None]):
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         value = event.value.strip()
-        if value:
+        problem = self.validate(value) if self.validate else None
+        if problem:
+            self.app.notify(problem, severity="warning")
+        elif value:
             self.dismiss(value)
+
+    def action_scroll_body(self, direction: int) -> None:
+        body = self.query_one("#dialog-body", VerticalScroll)
+        if direction > 0:
+            body.scroll_page_down(animate=False)
         else:
-            self.app.notify(t(self.empty_key), severity="warning")
+            body.scroll_page_up(animate=False)
 
     def action_cancel(self) -> None:
         self.dismiss(None)

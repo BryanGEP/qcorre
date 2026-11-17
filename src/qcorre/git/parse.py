@@ -68,6 +68,8 @@ class RepoStatus:
     remotes: tuple[str, ...] = ()
     upstream_oid: str | None = None
     remote_url: str | None = None  # dirección del remoto (sin credenciales)
+    head_subject: str | None = None  # primera línea del mensaje del último commit
+    has_parent: bool = False  # el último commit tiene uno anterior (se puede deshacer)
     last_sync: float | None = None  # último contacto con el remoto (fetch, pull o push)
 
     # ── Rama ────────────────────────────────────────────────────

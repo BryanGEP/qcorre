@@ -6,6 +6,7 @@ from rich.text import Text
 
 from qcorre.git import explain
 from qcorre.git.parse import ChangeKind, FileChange, RepoStatus
+from qcorre.git.sensitive import is_sensitive
 from qcorre.i18n import t
 from qcorre.ui import theme
 from qcorre.ui.format import short_duration
@@ -35,8 +36,17 @@ _MIN_BOX = 6
 _MAX_BOX = 28
 
 
-def status_body(status: RepoStatus, now: float, *, width: int = 60, max_files: int = 10) -> Text:
-    """Todo el contenido del panel de git para un repo."""
+# Cuántos archivos se muestran antes de resumir el resto ("… y N más").
+MAX_FILES = 10
+
+
+def status_body(
+    status: RepoStatus, now: float, *, width: int = 60, expanded: bool = False
+) -> Text:
+    """Todo el contenido del panel de git para un repo.
+
+    Con ``expanded`` se listan todos los archivos en vez de los primeros.
+    """
     text = Text()
     text.append_text(_styled(explain.explain_branch(status), status.branch or status.short_oid))
     text.append("\n\n")
@@ -47,7 +57,8 @@ def status_body(status: RepoStatus, now: float, *, width: int = 60, max_files: i
         text.append_text(_styled(note))
     if status.files:
         text.append("\n")
-        text.append_text(file_list(status.files, max_files=max_files, width=width))
+        limit = None if expanded else MAX_FILES
+        text.append_text(file_list(status.files, max_files=limit, width=width))
 
     text.append("\n\n")
     text.append_text(_styled(explain.explain_sync(status)))
@@ -73,25 +84,42 @@ def _styled(line: explain.Line, highlight: str | None = None) -> Text:
     return text
 
 
-def file_list(files: tuple[FileChange, ...], *, max_files: int = 10, width: int = 60) -> Text:
-    """Lista de archivos con su marca: ``M`` cambiado, ``+`` nuevo, ``-`` borrado..."""
+def file_list(
+    files: tuple[FileChange, ...],
+    *,
+    max_files: int | None = MAX_FILES,
+    width: int = 60,
+    collapsible: bool = True,
+) -> Text:
+    """Lista de archivos con su marca: ``M`` cambiado, ``+`` nuevo, ``-`` borrado...
+
+    ``max_files=None`` los lista todos. Los que parecen guardar secretos
+    llevan una marca de aviso. ``collapsible`` añade la pista de la tecla
+    para ver todos / ver menos.
+    """
     ordered = sorted(files, key=lambda f: (_KIND_ORDER.index(f.kind), f.path.casefold()))
+    shown = ordered if max_files is None else ordered[:max_files]
     text = Text()
-    for index, change in enumerate(ordered[:max_files]):
+    for index, change in enumerate(shown):
         if index:
             text.append("\n")
         mark, color = FILE_MARKS[change.kind]
         path = change.path
         if change.orig_path:
             path = f"{change.orig_path} → {change.path}"
-        room = max(8, width - 5)
+        risky = change.kind is not ChangeKind.DELETED and is_sensitive(change.path)
+        room = max(8, width - (8 if risky else 5))
         if len(path) > room:
             path = "…" + path[-(room - 1) :]
         text.append(f"  {mark}  ", style=f"bold {color}")
-        text.append(path, style=theme.FOREGROUND)
-    hidden = len(ordered) - max_files
+        text.append(path, style=theme.WARNING if risky else theme.FOREGROUND)
+        if risky:
+            text.append("  ⚠", style=theme.WARNING)
+    hidden = len(ordered) - len(shown)
     if hidden > 0:
         text.append("\n     " + t("git.files.more", n=hidden), style=theme.MUTED)
+    elif collapsible and max_files is None and len(ordered) > MAX_FILES:
+        text.append("\n     " + t("git.files.less"), style=theme.MUTED)
     return text
 
 
