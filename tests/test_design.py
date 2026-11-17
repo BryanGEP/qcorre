@@ -173,7 +173,8 @@ async def test_las_notas_caben_en_el_panel_a_100_columnas(lang):
 
 
 def footer(app: QcorreApp) -> str:
-    return str(app.query_one(HintBar).render())
+    """El pie con los espacios normalizados (las teclas son píldoras: " c  commit")."""
+    return " ".join(str(app.query_one(HintBar).render()).split())
 
 
 async def select_line(app: QcorreApp, pilot, fragment: str) -> None:
@@ -220,10 +221,10 @@ async def test_el_pie_siempre_es_una_linea_y_conserva_ayuda_y_salir():
                 await pilot.press(*keys) if keys else None
                 await pilot.pause()
                 bar = app.query_one(HintBar)
-                text = footer(app)
-                assert "\n" not in text and bar.size.height == 1
-                assert len(text) <= bar.content_size.width, (width, text)
-                assert text.endswith("? ayuda   q salir"), (width, text)
+                raw = str(bar.render())
+                assert "\n" not in raw and bar.size.height == 1
+                assert len(raw) <= bar.content_size.width, (width, raw)
+                assert footer(app).endswith("? ayuda q salir"), (width, raw)
 
 
 async def test_en_un_pie_angosto_se_recortan_los_menos_importantes():
@@ -244,7 +245,7 @@ async def test_el_pie_se_traduce():
         await settle(app, pilot)
         await pilot.press("i")
         await pilot.pause()
-        assert footer(app).endswith("? help   q quit")
+        assert footer(app).endswith("? help q quit")
 
 
 async def test_1_y_2_saltan_entre_paneles():
@@ -266,12 +267,12 @@ def test_un_solo_estilo_de_encabezado():
 
 def test_un_solo_estilo_de_teclas():
     line = keys_line([Key("enter", "matar", primary=True, danger=True), Key("esc", "cancelar")])
-    assert line.plain == "enter matar   esc cancelar"
+    assert line.plain == " enter  matar    esc  cancelar"
     styles = [str(span.style) for span in line.spans]
     assert styles == [
-        f"bold {theme.ERROR}",  # tecla de una acción destructiva
+        f"bold {theme.BACKGROUND} on {theme.ERROR}",  # tecla de una acción destructiva
         theme.FOREGROUND,  # la acción principal
-        f"bold {theme.ACCENT}",
+        f"bold {theme.BACKGROUND} on {theme.ACCENT}",  # tecla dibujada
         theme.MUTED,  # las demás acciones
     ]
 
@@ -287,8 +288,8 @@ async def test_los_dialogos_usan_los_estilos_unificados():
             keys = app.screen.query_one("#dialog-keys").render()
             spans = {keys.plain[s.start : s.end]: Style.parse(str(s.style)) for s in keys.spans}
             assert spans[" " + primary].color.triplet == Color.parse(theme.FOREGROUND).triplet, key
-            assert spans["esc"].color.triplet == Color.parse(theme.ACCENT).triplet, key
-            assert spans["esc"].bold, key
+            assert spans[" esc "].bgcolor.triplet == Color.parse(theme.ACCENT).triplet, key
+            assert spans[" esc "].bold, key
             await pilot.press("escape")
             await settle(app, pilot)
 

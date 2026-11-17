@@ -25,11 +25,15 @@ KEY_GLYPHS = {"updown": "↑↓", "escape": "esc"}
 
 
 class Header(Horizontal):
-    """Cabecera: marca a la izquierda; conteos e idioma a la derecha."""
+    """Cabecera: marca a la izquierda; chips de resumen a la derecha.
+
+    Los chips dicen de un vistazo cuánto corre y si hay algo que revisar: el
+    de huérfanos solo aparece cuando hay alguno, y va en color de aviso.
+    """
 
     def __init__(self, *, id: str, demo: bool = False) -> None:
         super().__init__(id=id)
-        self._counts: tuple[int, int] | None = None
+        self._counts: tuple[int, int, int] | None = None
         self.demo = demo  # los datos son simulados: se avisa para que nadie se confunda
 
     def compose(self) -> ComposeResult:
@@ -39,29 +43,36 @@ class Header(Horizontal):
     def on_mount(self) -> None:
         self.update_texts()
 
-    def set_counts(self, projects: int, processes: int) -> None:
-        self._counts = (projects, processes)
+    def set_counts(self, projects: int, processes: int, orphans: int = 0) -> None:
+        self._counts = (projects, processes, orphans)
         self.update_texts()
 
     def update_texts(self) -> None:
         brand = Text()
-        brand.append("▍", style=theme.ACCENT)
+        brand.append("◆ ", style=f"bold {theme.ACCENT}")
         brand.append("qcorre", style=f"bold {theme.FOREGROUND}")
         brand.append("  " + t("app.tagline"), style=theme.MUTED)
         self.query_one("#brand", Static).update(brand)
 
-        status = Text()
+        chips: list[tuple[str, str]] = []
         if self.demo:
-            badge = f"bold {theme.BACKGROUND} on {theme.WARNING}"
-            status.append(f" {t('status.demo')} ", style=badge)
-            status.append("  ")
+            chips.append((t("status.demo"), f"bold {theme.BACKGROUND} on {theme.WARNING}"))
         if self._counts is not None:
-            projects, processes = self._counts
-            status.append(t("status.projects", n=projects), style=theme.MUTED)
-            status.append("  ·  ", style=theme.MUTED)
-            status.append(t("status.processes", n=processes), style=theme.MUTED)
-            status.append("  ·  ", style=theme.MUTED)
-        status.append(i18n.get_language().upper(), style=f"bold {theme.ACCENT}")
+            projects, processes, orphans = self._counts
+            plain = f"{theme.FOREGROUND} on {theme.PANEL}"
+            chips.append((t("status.projects", n=projects), plain))
+            chips.append((t("status.processes", n=processes), plain))
+            if orphans:
+                chips.append(
+                    (t("status.orphans", n=orphans), f"bold {theme.WARNING} on {theme.PANEL}")
+                )
+        chips.append((i18n.get_language().upper(), f"bold {theme.ACCENT} on {theme.PANEL}"))
+
+        status = Text()
+        for index, (label, style) in enumerate(chips):
+            if index:
+                status.append(" ")
+            status.append(f" {label} ", style=style)
         self.query_one("#status", Static).update(status)
 
 

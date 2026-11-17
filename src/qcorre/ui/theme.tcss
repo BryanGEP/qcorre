@@ -10,8 +10,8 @@ Screen {
 
 #header {
     width: 100%;
-    height: 2;
-    padding: 1 2 0 2;
+    height: 3;
+    padding: 1 2 1 2;
 }
 
 #brand {
@@ -30,11 +30,12 @@ Screen {
     padding: 0 1;
 }
 
+/* Cada panel es una tarjeta: un fondo un poco más claro que la pantalla. */
 Panel {
     border: round $qc-border;
     border-title-color: $qc-muted;
     padding: 0 1;
-    background: $background;
+    background: $surface;
 }
 
 Panel:focus, Panel:focus-within {
@@ -52,7 +53,7 @@ Panel:focus, Panel:focus-within {
 /* Árbol de proyectos */
 
 #tree {
-    background: $background;
+    background: $surface;
     overflow-x: hidden;
     scrollbar-size-vertical: 1;
 }
@@ -66,7 +67,7 @@ Panel:focus, Panel:focus-within {
 }
 
 #tree > .tree--highlight-line {
-    background: $surface;
+    background: $qc-pill;
 }
 
 #tree > .tree--cursor {
@@ -207,5 +208,5 @@ HintBar {
     dock: bottom;
     height: 1;
     padding: 0 2;
-    background: $surface;
+    background: $background;
 }

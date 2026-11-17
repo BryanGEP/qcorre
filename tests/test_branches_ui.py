@@ -379,5 +379,5 @@ async def test_el_pie_incluye_ramas_y_deshacer():
         await settle(app, pilot)
         await pilot.press("2")
         await pilot.pause()
-        line = str(app.query_one(HintBar).render())
+        line = " ".join(str(app.query_one(HintBar).render()).split())
         assert "b ramas" in line and "u deshacer" in line

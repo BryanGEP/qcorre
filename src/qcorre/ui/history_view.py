@@ -43,13 +43,15 @@ AUTHOR_FROM_WIDTH = 96
 # Desde qué ancho de panel se muestra la columna de antigüedad.
 AGE_FROM_WIDTH = 50
 
-REF_STYLES = {
-    RefKind.HEAD: f"bold {theme.SUCCESS}",
-    RefKind.DETACHED: f"bold {theme.WARNING}",
-    RefKind.LOCAL: f"bold {theme.ACCENT}",
-    RefKind.REMOTE: theme.SECONDARY,
-    RefKind.TAG: theme.WARNING,
-}
+def ref_style(kind: RefKind) -> str:
+    """Estilo de cada tipo de etiqueta (se lee del tema al pintar)."""
+    return {
+        RefKind.HEAD: f"bold {theme.SUCCESS}",
+        RefKind.DETACHED: f"bold {theme.WARNING}",
+        RefKind.LOCAL: f"bold {theme.ACCENT}",
+        RefKind.REMOTE: theme.SECONDARY,
+        RefKind.TAG: theme.WARNING,
+    }[kind]
 
 
 @dataclass(frozen=True)
@@ -203,7 +205,7 @@ def refs_text(refs: tuple[Ref, ...], *, limit: int = MAX_REFS) -> Text:
         if index:
             text.append(", ", style=theme.MUTED)
         label = f"HEAD → {ref.name}" if ref.kind is RefKind.HEAD else ref.name
-        text.append(label, style=REF_STYLES[ref.kind])
+        text.append(label, style=ref_style(ref.kind))
     hidden = len(refs) - limit
     if hidden > 0:
         text.append(f", +{hidden}", style=theme.MUTED)

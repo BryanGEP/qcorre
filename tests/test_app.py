@@ -119,7 +119,7 @@ async def test_muestra_los_proyectos_con_sus_procesos():
     app = make_app()
     async with app.run_test(size=(110, 30)) as pilot:
         await settle(app, pilot)
-        assert app.theme == "qcorre"
+        assert app.theme == "qcorre-dark"
         lines = tree_lines(app)
         # Nombre a la izquierda; puertos, tiempos y conteos pegados a la derecha.
         assert lines[0].startswith("tienda-api") and lines[0].endswith("3")

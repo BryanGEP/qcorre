@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from rich.text import Text
+from textual import events
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Static
@@ -26,6 +27,28 @@ from qcorre.ui.widgets import Panel
 
 STATUS = "status"
 HISTORY = "history"
+
+
+class _Body(Static):
+    """Cuerpo del panel de git: avisa cuando cambia su ancho.
+
+    El contenido (mapa, columnas del historial, últimos commits) se calcula
+    para un ancho concreto. El ancho real se asienta después del primer
+    pintado (y cambia cuando aparece la barra de desplazamiento), así que
+    cuando cambia se vuelve a pintar. Si el ancho no cambia no se repinta, de
+    modo que esto no entra en bucle.
+    """
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._width = 0
+
+    def on_resize(self, event: events.Resize) -> None:
+        if event.size.width != self._width:
+            self._width = event.size.width
+            panel = next((a for a in self.ancestors if isinstance(a, GitPanel)), None)
+            if panel is not None:
+                panel.update_texts()
 
 
 class GitPanel(Panel):
@@ -52,7 +75,7 @@ class GitPanel(Panel):
         yield Static(classes="empty")
         yield Static(id="git-tabs")
         with VerticalScroll(id="git-scroll"):
-            yield Static(id="git-body")
+            yield _Body(id="git-body")
 
     @property
     def status(self) -> RepoStatus | None:
@@ -132,14 +155,19 @@ class GitPanel(Panel):
     # ── Internos ────────────────────────────────────────────────
 
     def _body_width(self) -> int:
-        """Columnas disponibles para el contenido de la vista activa."""
+        """Columnas disponibles para el contenido de la vista activa.
+
+        Siempre se reserva la columna de la barra de desplazamiento, aunque
+        todavía no se vea: si no, al crecer el contenido la barra aparece, le
+        quita una columna a lo ya pintado y las líneas justas se parten en dos.
+        """
         scroll = self.query_one("#git-scroll", VerticalScroll)
         width = scroll.scrollable_content_region.width if scroll.display else 0
-        if width <= 0:
-            # El área con scroll está oculta (mide cero): se estima con el
-            # ancho del panel menos sus márgenes y la barra de scroll.
-            width = self.content_size.width - 3
-        return max(30, width)
+        if width > 0:
+            return max(30, width - (0 if scroll.show_vertical_scrollbar else 1))
+        # El área con scroll está oculta (mide cero): se estima con el ancho
+        # del panel menos sus márgenes y la barra.
+        return max(30, self.content_size.width - 3)
 
     def _message(self, content: Text | str) -> None:
         """Mensaje centrado, sin pestañas (no hay repo que mostrar)."""

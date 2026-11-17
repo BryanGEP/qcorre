@@ -2,33 +2,54 @@
 
 from __future__ import annotations
 
+import re
+from dataclasses import replace
+
 from rich.text import Text
 
 from qcorre.git import explain
+from qcorre.git.graph import GraphRow, layout
 from qcorre.git.parse import ChangeKind, FileChange, RepoStatus
 from qcorre.git.sensitive import is_sensitive
 from qcorre.i18n import t
 from qcorre.ui import theme
 from qcorre.ui.format import short_duration
+from qcorre.ui.history_view import columns_for, commit_line
+from qcorre.ui.styles import heading
 
-TONE_STYLES = {
-    explain.GOOD: theme.SUCCESS,
-    explain.INFO: theme.FOREGROUND,
-    explain.WARN: theme.WARNING,
-    explain.MUTED: theme.MUTED,
-}
+# Los colores se leen del tema al pintar (no al importar): así cambiar de tema
+# en caliente repinta todo con la paleta nueva.
 
-# Marca y color de cada tipo de cambio en la lista de archivos.
-FILE_MARKS = {
-    ChangeKind.CONFLICT: ("!", theme.ERROR),
-    ChangeKind.MODIFIED: ("M", theme.WARNING),
-    ChangeKind.NEW: ("+", theme.SUCCESS),
-    ChangeKind.DELETED: ("-", theme.ERROR),
-    ChangeKind.RENAMED: ("R", theme.SECONDARY),
-}
+
+def tone_color(tone: str) -> str:
+    """Color del texto de una frase según su tono."""
+    return {
+        explain.GOOD: theme.SUCCESS,
+        explain.INFO: theme.FOREGROUND,
+        explain.WARN: theme.WARNING,
+        explain.MUTED: theme.MUTED,
+    }[tone]
+
+
+def file_mark(kind: ChangeKind) -> tuple[str, str]:
+    """Marca y color de cada tipo de cambio en la lista de archivos."""
+    return {
+        ChangeKind.CONFLICT: ("!", theme.ERROR),
+        ChangeKind.MODIFIED: ("M", theme.WARNING),
+        ChangeKind.NEW: ("+", theme.SUCCESS),
+        ChangeKind.DELETED: ("-", theme.ERROR),
+        ChangeKind.RENAMED: ("R", theme.SECONDARY),
+    }[kind]
+
 
 # Orden en que se listan los archivos: primero lo que más urge.
-_KIND_ORDER = list(FILE_MARKS)
+_KIND_ORDER = [
+    ChangeKind.CONFLICT,
+    ChangeKind.MODIFIED,
+    ChangeKind.NEW,
+    ChangeKind.DELETED,
+    ChangeKind.RENAMED,
+]
 
 # Ancho de la zona de flechas entre las dos cajas del mapa.
 _ARROW_WIDTH = 12
@@ -57,7 +78,7 @@ def status_body(
         text.append_text(_styled(branch, status.branch or status.short_oid))
         text.append("\n\n")
 
-    text.append_text(_styled(explain.explain_changes(status)))
+    text.append_text(_highlight(_styled(explain.explain_changes(status)), _change_colors(status)))
     for note in explain.explain_notes(status):
         text.append("\n")
         text.append_text(_styled(note))
@@ -67,7 +88,7 @@ def status_body(
         text.append_text(file_list(status.files, max_files=limit, width=width))
 
     text.append("\n\n")
-    text.append_text(_styled(explain.explain_sync(status)))
+    text.append_text(_highlight(_styled(explain.explain_sync(status)), _sync_colors(status)))
     diagram = sync_map(status, width=width)
     if diagram is not None:
         text.append("\n\n")
@@ -77,12 +98,73 @@ def status_body(
     if fetch is not None:
         text.append("\n")
         text.append_text(_styled(fetch))
+
+    # Debajo del mapa queda espacio: se aprovecha para los últimos commits.
+    if status.recent:
+        text.append("\n\n")
+        text.append_text(heading(t("git.recent")))
+        # La lista sigue solo la línea de la rama (el primer padre), así que se
+        # dibuja como una sola columna: sin el segundo padre de los merges,
+        # que abriría carriles hacia commits que no se muestran. Cada fila
+        # conserva su commit original, para que los merges se vean tenues.
+        line = [replace(commit, parents=commit.parents[:1]) for commit in status.recent]
+        rows = [
+            GraphRow(original, row.column, row.color, row.cells)
+            for original, row in zip(status.recent, layout(line), strict=True)
+        ]
+        columns = columns_for(rows, now, width)
+        for row in rows:
+            text.append("\n")
+            text.append_text(commit_line(row, now, columns))
     return text
+
+
+# Un número y la palabra que lo sigue: "3 archivos", "1 commit", "2 nuevos".
+_COUNT = re.compile(r"\d+\s+\S+")
+
+
+def _highlight(text: Text, colors: list[str]) -> Text:
+    """Destaca en negrita y color cada número de la frase, con la palabra que lo sigue.
+
+    ``colors`` da el color de cada número en el orden en que aparecen; así
+    "3 archivos" va del color de los cambiados y "2 nuevos" del de los nuevos,
+    igual que sus marcas en la lista de archivos.
+    """
+    for match, color in zip(_COUNT.finditer(text.plain), colors, strict=False):
+        text.stylize(f"bold {color}", match.start(), match.end() - _trailing_punctuation(match))
+    return text
+
+
+def _trailing_punctuation(match: re.Match) -> int:
+    word = match.group(0)
+    return len(word) - len(word.rstrip(".,;:"))
+
+
+def _change_colors(status: RepoStatus) -> list[str]:
+    """Colores de los números de la frase de cambios, en su orden."""
+    colors = []
+    if status.changed:
+        colors.append(theme.WARNING)
+    if status.new:
+        colors.append(theme.SUCCESS)
+    if status.conflicts:
+        colors.append(theme.ERROR)
+    return colors
+
+
+def _sync_colors(status: RepoStatus) -> list[str]:
+    """Colores de los números de la frase de sincronía: subir en acento, bajar en aviso."""
+    colors = []
+    if status.ahead:
+        colors.append(theme.ACCENT)
+    if status.behind:
+        colors.append(theme.WARNING)
+    return colors
 
 
 def _styled(line: explain.Line, highlight: str | None = None) -> Text:
     """Frase con el color de su tono; ``highlight`` resalta una palabra (la rama)."""
-    text = Text(line.text, style=TONE_STYLES[line.tone])
+    text = Text(line.text, style=tone_color(line.tone))
     if highlight:
         start = line.text.find(highlight)
         if start >= 0:
@@ -109,7 +191,7 @@ def file_list(
     for index, change in enumerate(shown):
         if index:
             text.append("\n")
-        mark, color = FILE_MARKS[change.kind]
+        mark, color = file_mark(change.kind)
         path = change.path
         if change.orig_path:
             path = f"{change.orig_path} → {change.path}"

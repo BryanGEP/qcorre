@@ -364,7 +364,7 @@ async def test_la_ayuda_lista_todos_los_atajos(world):
         await pilot.press("escape")
         await pilot.pause()
         assert len(app.screen_stack) == 1
-        assert "? ayuda" in str(app.query_one("HintBar").render())
+        assert "? ayuda" in " ".join(str(app.query_one("HintBar").render()).split())
 
 
 async def test_la_ayuda_en_ingles(world):
@@ -427,3 +427,13 @@ def test_cli_rechaza_umbrales_invalidos(value, capsys):
     with pytest.raises(SystemExit):
         cli.build_parser().parse_args(["--orphan-hours", value])
     assert "mayor que cero" in capsys.readouterr().err
+
+
+def test_el_estado_simulado_trae_los_ultimos_commits(world, api):
+    status = world.read_status(api)
+    assert [c.subject for c in status.recent][:2] == ["valida montos negativos", "modelo de pagos"]
+    assert len(status.recent) == 5
+    assert status.recent[0].refs and status.recent[0].refs[0].name == "feature/pagos"
+    # Tras un commit, aparece el primero.
+    run(world, api, actions.plan_commit(status, "agrega webhooks"))
+    assert world.read_status(api).recent[0].subject == "agrega webhooks"

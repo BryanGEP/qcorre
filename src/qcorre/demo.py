@@ -26,7 +26,7 @@ from qcorre.git import actions
 from qcorre.git.actions import ActionPlan, ActionResult
 from qcorre.git.backup import BACKUP_PREFIX, Backup
 from qcorre.git.branches import Branch, BranchList
-from qcorre.git.history import Commit, History, Ref, RefKind
+from qcorre.git.history import RECENT_LIMIT, Commit, History, Ref, RefKind
 from qcorre.git.parse import FileChange, RepoStatus
 from qcorre.git.runner import GitError, GitResult
 from qcorre.models import (
@@ -136,8 +136,20 @@ class _DemoRepo:
             remote_url=self.url,
             head_subject=tip.subject,
             has_parent=bool(tip.parents),
+            recent=self.recent(branch.tip),
             last_sync=self.last_sync,
         )
+
+    def recent(self, tip: str, limit: int = RECENT_LIMIT) -> tuple[Commit, ...]:
+        """Los últimos commits de la rama, siguiendo el primer padre (como git)."""
+        decorated = {commit.oid: commit for commit in self.history().commits}
+        chain: list[Commit] = []
+        oid: str | None = tip
+        while oid is not None and len(chain) < limit:
+            commit = decorated.get(oid) or self.commits[oid]
+            chain.append(commit)
+            oid = commit.parents[0] if commit.parents else None
+        return tuple(chain)
 
     def branch_list(self) -> BranchList:
         reachable = self.ancestors(self.branches[self.current].tip)

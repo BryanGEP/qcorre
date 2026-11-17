@@ -123,6 +123,7 @@ qcorre path/to/project    # same, pinning another project
 qcorre --demo             # simulated data: try everything without touching anything real
 qcorre --lang es          # force the language (en / es)
 qcorre --orphan-hours 8   # flag as orphan anything running for more than 8 hours
+qcorre --theme light     # light theme (or set QCORRE_THEME=light)
 ```
 
 > **Try it risk-free:** `qcorre --demo` opens the full interface over fake
@@ -147,6 +148,7 @@ qcorre --orphan-hours 8   # flag as orphan anything running for more than 8 hour
 | `h` | Toggle between status and history |
 | `a` | See every changed file |
 | `i` | Switch language |
+| `t` | Switch theme (dark / light) |
 | `?` | Help |
 | `q` | Quit |
 

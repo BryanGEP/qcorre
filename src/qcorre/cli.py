@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Sequence
+import os
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from qcorre import __version__, i18n
+
+# Los nombres de los temas (sin importar Textual: --help debe ser instantáneo).
+THEMES = ("dark", "light")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,6 +32,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--lang",
         choices=i18n.LANGUAGES,
         help="idioma de la interfaz / interface language",
+    )
+    parser.add_argument(
+        "--theme",
+        choices=THEMES,
+        help=(
+            "tema de colores (por defecto, el de QCORRE_THEME u oscuro) / "
+            "color theme (default: QCORRE_THEME or dark)"
+        ),
     )
     parser.add_argument(
         "--demo",
@@ -64,15 +76,25 @@ def _positive_hours(value: str) -> float:
     return hours
 
 
+def choose_theme(requested: str | None, environ: Mapping[str, str] | None = None) -> str:
+    """El tema a usar: el pedido con ``--theme``, el de ``QCORRE_THEME`` u oscuro."""
+    if requested:
+        return requested
+    env = os.environ if environ is None else environ
+    from_env = env.get("QCORRE_THEME", "").strip().lower()
+    return from_env if from_env in THEMES else "dark"
+
+
 def build_app(args: argparse.Namespace):
     """Crea la aplicación según los argumentos (real o en modo demo)."""
     # Se importa aquí para que `--help` y `--version` no carguen Textual.
     from qcorre.ui.app import QcorreApp
 
+    theme_name = choose_theme(args.theme)
     if args.demo:
         from qcorre.demo import DemoWorld
 
-        return QcorreApp(**DemoWorld().as_kwargs())
+        return QcorreApp(**DemoWorld().as_kwargs(), theme_name=theme_name)
 
     from qcorre.scanner import Scanner
 
@@ -80,7 +102,7 @@ def build_app(args: argparse.Namespace):
         pinned=[Path(args.path).resolve()],
         long_running_seconds=args.orphan_hours * 3600,
     )
-    return QcorreApp(scanner=scanner)
+    return QcorreApp(scanner=scanner, theme_name=theme_name)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -445,7 +445,7 @@ async def test_el_pie_incluye_el_historial():
         await settle(app, pilot)
         await pilot.press("2")
         await pilot.pause()
-        assert "h historial" in str(app.query_one(HintBar).render())
+        assert "h historial" in " ".join(str(app.query_one(HintBar).render()).split())
         await pilot.press("h")  # ya en el historial, la tecla vuelve al estado
         await settle(app, pilot)
-        assert "h estado" in str(app.query_one(HintBar).render())
+        assert "h estado" in " ".join(str(app.query_one(HintBar).render()).split())
