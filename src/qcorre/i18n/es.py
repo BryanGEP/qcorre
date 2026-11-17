@@ -10,7 +10,8 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "projects.scanning": "Buscando procesos…",
     "projects.empty": (
         "No hay procesos de desarrollo corriendo.\n\n"
-        "Arranca un servidor o una base de datos\ny aparecerá aquí."
+        "Arranca un servidor o una base de datos\ny aparecerá aquí.\n\n"
+        "¿Quieres ver cómo se ve? Prueba\nqcorre --demo"
     ),
     "group.orphans": "Huérfanos",
     "tag.no_git": "sin git",
@@ -20,16 +21,25 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "orphan.days": {"one": "lleva {n} día", "other": "lleva {n} días"},
     "orphan.hours": {"one": "lleva {n} hora", "other": "lleva {n} horas"},
     "orphan.minutes": {"one": "lleva {n} minuto", "other": "lleva {n} minutos"},
-    "orphan.parent_gone": "su padre ya cerró",
+    "orphan.parent_gone": "sin padre",
     # Panel de git
     "panel.git": "Git",
-    "git.empty": "Selecciona un proyecto para ver\nsu estado de git en lenguaje humano.",
+    "git.empty": (
+        "Aquí verás el git del proyecto seleccionado.\n\n"
+        "qcorre muestra siempre el proyecto de la carpeta\ndesde donde lo abres."
+    ),
     "git.no_repo": "Este proyecto no es un repositorio git.",
     "git.orphans": "Estos procesos no pertenecen a ningún proyecto.",
     "git.loading": "Leyendo el repositorio…",
     "git.error.not_installed": "No encontré git en esta compu.\nInstálalo para ver esta sección.",
     "git.error.timeout": "Git tardó demasiado en responder.",
     "git.error.failed": "Git respondió con un error:",
+    "git.error.hint.retry": "Pulsa r para volver a intentarlo.",
+    "git.error.hint.install": "Descárgalo de https://git-scm.com y vuelve a abrir qcorre.",
+    "git.error.hint.not_repo": (
+        "Esta carpeta ya no es un repositorio git (¿se movió o se borró .git?).\n"
+        "Pulsa r para volver a intentarlo."
+    ),
     # Git: en qué rama estás
     "git.branch.on": "Estás en la rama {branch}",
     "git.branch.unborn": "Estás en la rama {branch}, que todavía no tiene commits",
@@ -63,6 +73,7 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     },
     "git.files.less": "tecla a para ver menos",
     "list.and": " y ",
+    "git.files.secret": "¿secreto?",
     # Git: tu compu y el remoto
     "git.sync.no_remote": "Este repo no tiene remoto: solo existe en tu compu.",
     "git.sync.unborn": "Cuando hagas tu primer commit podrás subirlo al remoto.",
@@ -456,6 +467,7 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "help.section.app": "Aplicación",
     "help.move": "moverse por la lista de proyectos y procesos",
     "help.panel": "cambiar de panel (en el de git, las flechas lo recorren)",
+    "help.jump": "ir directo al panel de proyectos (1) o al de git (2)",
     "help.enter": "ver el detalle de un proceso, o plegar un proyecto",
     "help.refresh": "volver a buscar procesos y releer git ahora",
     "help.kill": "matar el proceso seleccionado (pide confirmación)",
@@ -493,8 +505,11 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "hint.move": "mover",
     "hint.kill": "matar",
     "hint.kill_all": "matar todos",
-    "hint.panel": "panel",
+    "hint.scroll": "desplazar",
+    "hint.status": "estado",
+    "hint.collapse": "plegar",
+    "hint.to_git": "ir a git",
+    "hint.to_projects": "ir a proyectos",
     "hint.refresh": "refrescar",
-    "hint.language": "idioma",
     "hint.quit": "salir",
 }

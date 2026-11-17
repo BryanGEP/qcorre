@@ -243,17 +243,18 @@ async def test_sin_repo_seleccionado_las_acciones_no_hacen_nada():
         assert executor.calls == []
 
 
-async def test_el_pie_tiene_dos_filas_con_los_atajos_de_git():
+async def test_con_el_panel_de_git_activo_el_pie_muestra_sus_acciones():
     app = make_app(FakeExecutor())
     async with app.run_test(size=(120, 36)) as pilot:
         await settle(app, pilot)
+        await pilot.press("2")
+        await pilot.pause()
         bar = app.query_one(HintBar)
-        first, second = str(bar.render()).splitlines()
-        assert "k matar" in first and "enter detalle" in first
-        assert "c commit" in second and "p push" in second and "l pull" in second
-        assert "f actualizar" in second and "q salir" in second
-        assert bar.size.height == 2
-
+        line = str(bar.render())
+        assert "\n" not in line and bar.size.height == 1
+        for hint in ("c commit", "p push", "l pull", "b ramas", "? ayuda", "q salir"):
+            assert hint in line
+        assert "k matar" not in line  # matar es del panel de proyectos
 
 async def test_commit_de_punta_a_punta_con_git_real(tmp_path, monkeypatch):
     """La app completa contra un repo real: tecla c, mensaje, Enter y hay commit."""

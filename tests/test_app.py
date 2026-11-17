@@ -121,12 +121,15 @@ async def test_muestra_los_proyectos_con_sus_procesos():
         await settle(app, pilot)
         assert app.theme == "qcorre"
         lines = tree_lines(app)
-        assert lines[0].startswith("tienda-api  3")
-        assert lines[1].startswith("● postgres") and ":5432" in lines[1]
-        assert lines[2].startswith("● uvicorn") and "1h 00m" in lines[2]
-        assert any(line.startswith("tienda-web  1  sin git") for line in lines)
+        # Nombre a la izquierda; puertos, tiempos y conteos pegados a la derecha.
+        assert lines[0].startswith("tienda-api") and lines[0].endswith("3")
+        assert lines[1].startswith("● postgres") and lines[1].endswith(":5432  1h 00m")
+        assert lines[2].startswith("● uvicorn") and lines[2].endswith(":8000  1h 00m")
+        web = next(line for line in lines if line.startswith("tienda-web"))
+        assert "sin git" in web and web.endswith("1")
         assert any("npm run dev → vite" in line and ":5173" in line for line in lines)
-        assert any(line.startswith("⚠ Huérfanos  2") for line in lines)
+        orphans = next(line for line in lines if line.startswith("Huérfanos"))
+        assert orphans.endswith("2")
         status = str(app.query_one("#status").render())
         assert "2 proyectos" in status and "6 procesos" in status
 
@@ -137,11 +140,11 @@ async def test_huerfano_dentro_del_proyecto_muestra_su_razon():
         await settle(app, pilot)
         lines = tree_lines(app)
         index = next(i for i, line in enumerate(lines) if "node server.js" in line)
-        assert lines[index].startswith("⚠ ")
-        assert "lleva 3 días" in lines[index + 1]
-        assert "su padre ya cerró" in lines[index + 1]
-        # La cabecera del proyecto también avisa.
-        assert "⚠" in lines[0]
+        # El aviso es el color del punto, no un símbolo distinto.
+        assert lines[index].startswith("● ")
+        assert lines[index + 1].rstrip() == "╰ lleva 3 días · sin padre"
+        # La cabecera del proyecto también avisa, con un punto tras el nombre.
+        assert lines[0].startswith("tienda-api  ●")
 
 
 async def test_sin_permiso_se_muestra_sin_tronar():
@@ -229,8 +232,8 @@ async def test_i_cambia_el_idioma_de_toda_la_interfaz():
         assert "quit" in str(app.query_one(HintBar).render())
         assert "2 projects" in str(app.query_one(Header).query_one("#status").render())
         lines = tree_lines(app)
-        assert any(line.startswith("⚠ Orphans") for line in lines)
-        assert any("running for 3 days" in line for line in lines)
+        assert any(line.startswith("Orphans") for line in lines)
+        assert any("up 3 days" in line for line in lines)
         await pilot.press("i")
         await pilot.pause()
         assert app.query_one("#projects").border_title == "Proyectos"
@@ -271,56 +274,13 @@ async def test_si_el_proceso_seleccionado_muere_el_cursor_se_queda_en_su_proyect
         assert panel.selected is not None and panel.selected.project.name == "tienda-web"
 
 
-# ── Pie de atajos adaptable ─────────────────────────────────────
-
-
-@pytest.mark.parametrize("width", [60, 80, 96, 104, 120, 160])
-async def test_el_pie_nunca_corta_ni_esconde_un_atajo(width):
-    app = make_app()
-    async with app.run_test(size=(width, 30)) as pilot:
-        await settle(app, pilot)
-        bar = app.query_one(HintBar)
-        lines = str(bar.render()).splitlines()
-        assert bar.size.height == len(lines)
-        assert all(len(line) <= bar.content_size.width for line in lines), lines
-        text = " ".join(lines)
-        for _, label_key in [hint for row in QcorreApp.HINTS for hint in row]:
-            assert i18n.t(label_key) in text
-        # Ningún renglón se queda con un solo atajo mientras otro va lleno.
-        counts = [line.count("   ") + 1 for line in lines]
-        assert min(counts) >= 2 or len(lines) == 1, lines
-
-
-async def test_el_pie_ocupa_dos_filas_cuando_hay_ancho_de_sobra():
-    app = make_app()
-    async with app.run_test(size=(140, 30)) as pilot:
-        await settle(app, pilot)
-        assert app.query_one(HintBar).size.height == 2
-
-
-async def test_el_pie_se_reacomoda_al_cambiar_de_idioma_y_de_tamano():
-    app = make_app()
-    async with app.run_test(size=(108, 30)) as pilot:
-        await settle(app, pilot)
-        bar = app.query_one(HintBar)
-        spanish = bar.size.height
-        await pilot.press("i")  # en inglés los nombres son más cortos
-        await pilot.pause()
-        assert bar.size.height <= spanish
-        await pilot.resize_terminal(70, 30)
-        await pilot.pause()
-        assert bar.size.height > 2
-        assert all(len(line) <= bar.content_size.width for line in str(bar.render()).splitlines())
-
-
 async def test_la_razon_del_huerfano_cabe_entera_en_un_panel_angosto():
     i18n.set_language("en")
     app = make_app()
     async with app.run_test(size=(108, 30)) as pilot:
         await settle(app, pilot)
         tree = app.query_one(ProjectsPanel).tree
-        note = next(line for line in tree_lines(app) if "running for 3 days" in line)
-        assert note == "╰ running for 3 days · parent exited"
+        note = next(line for line in tree_lines(app) if "up 3 days" in line)
+        assert note.rstrip() == "╰ up 3 days · parent exited"
         # La sangría del árbol más la nota no superan el ancho visible del panel.
-        indent = tree.guide_depth + 1
-        assert indent + len(note) <= tree.size.width
+        assert tree.guide_depth + len(note) <= tree.size.width

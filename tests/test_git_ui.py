@@ -42,7 +42,8 @@ def panel_text(app: QcorreApp) -> str:
 def test_status_body_reune_frases_archivos_y_mapa():
     status = sample_status()
     text = status_body(status, status.last_sync + 2 * HOUR, width=60).plain
-    assert "Estás en la rama feature/pagos" in text
+    # La rama ya está en el borde del panel: el cuerpo no la repite.
+    assert "Estás en la rama" not in text
     assert "Tienes 3 archivos con cambios sin guardar en un commit y 1 archivo nuevo." in text
     assert "M  app/pagos.py" in text
     assert "+  app/webhooks.py" in text
@@ -131,7 +132,7 @@ async def test_el_panel_muestra_el_estado_del_proyecto_seleccionado():
         panel = app.query_one(GitPanel)
         assert panel.border_title == "tienda-api · feature/pagos"
         text = panel_text(app)
-        assert "Estás en la rama feature/pagos" in text
+        assert "Estás en la rama" not in text
         assert "Tienes 3 archivos con cambios sin guardar en un commit" in text
         assert "Tu compu" in text and "origin" in text
         assert panel.status is not None and panel.status.ahead == 2
@@ -149,13 +150,12 @@ async def test_cada_proyecto_muestra_su_propio_repo():
     app = make_app(Snapshot((base.projects[0], web)), git_reader=reader)
     async with app.run_test(size=(120, 34)) as pilot:
         await settle(app, pilot)
-        assert "rama-de-tienda-api" in panel_text(app)
+        assert app.query_one(GitPanel).border_title == "tienda-api · rama-de-tienda-api"
         for _ in range(5):
             await pilot.press("down")
         await settle(app, pilot)
         assert app.query_one(GitPanel).border_title == "tienda-web · rama-de-tienda-web"
-        assert "rama-de-tienda-web" in panel_text(app)
-        assert "rama-de-tienda-api" not in panel_text(app)
+        assert "tienda-api" not in app.query_one(GitPanel).border_title
 
 
 async def test_solo_se_lee_git_al_cambiar_de_proyecto():
@@ -228,7 +228,7 @@ async def test_el_panel_de_git_cambia_de_idioma():
         await pilot.press("i")
         await pilot.pause()
         text = panel_text(app)
-        assert "You are on branch feature/pagos" in text
+        assert "You have 3 files with changes" in text
         assert "Your machine" in text
 
 
@@ -294,7 +294,7 @@ async def test_proyecto_sin_procesos_se_lista_y_muestra_su_git():
         await settle(app, pilot)
         tree = app.query_one("#tree")
         assert tree.display
-        assert str(tree.get_node_at_line(0).label) == "blog  nada corriendo"
+        assert str(tree.get_node_at_line(0).label).rstrip() == "blog  nada corriendo"
         assert app.query_one(GitPanel).border_title == "blog · feature/pagos"
         # Sin procesos no hay nada que matar: no debe abrirse ningún diálogo.
         await pilot.press("k")

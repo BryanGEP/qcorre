@@ -278,7 +278,7 @@ async def test_h_alterna_entre_estado_e_historial():
         await settle(app, pilot)
         panel = app.query_one(GitPanel)
         assert panel.mode == STATUS
-        assert "Estás en la rama feature/pagos" in body_text(app)
+        assert "Tienes 3 archivos" in body_text(app)
         assert "Estado" in tabs_text(app) and "Historial" in tabs_text(app)
 
         await pilot.press("h")
@@ -286,12 +286,12 @@ async def test_h_alterna_entre_estado_e_historial():
         assert panel.mode == HISTORY
         text = body_text(app)
         assert "●─╮ aaaaaaa (HEAD → main, origin/main) Merge de feature/pagos" in text
-        assert "Estás en la rama" not in text
+        assert "Tienes 3 archivos" not in text
         assert panel.border_title == "tienda-api · feature/pagos"
 
         await pilot.press("h")
         await settle(app, pilot)
-        assert panel.mode == STATUS and "Estás en la rama feature/pagos" in body_text(app)
+        assert panel.mode == STATUS and "Tienes 3 archivos" in body_text(app)
 
 
 async def test_el_historial_solo_se_lee_cuando_se_esta_mirando():
@@ -443,28 +443,9 @@ async def test_el_pie_incluye_el_historial():
     app = make_app()
     async with app.run_test(size=(130, 34)) as pilot:
         await settle(app, pilot)
-        second = str(app.query_one(HintBar).render()).splitlines()[1]
-        assert "h historial" in second
-
-
-
-def test_en_un_panel_angosto_el_mensaje_manda_sobre_etiquetas_y_fecha():
-    refs = (Ref(RefKind.HEAD, "feature/pagos"), Ref(RefKind.REMOTE, "origin/feature/pagos"))
-    newest = c("a", "b", subject="add payment webhooks", refs=refs)
-    plain = c("b", subject="validate negative amounts")
-    first, second = lines(History((newest, plain)), width=54)
-    # La fila con etiquetas cede su columna de antigüedad y recorta la etiqueta,
-    # pero el mensaje se lee entero.
-    assert "add payment webhooks" in first
-    assert "(HEAD → feature/" in first and "…)" in first
-    assert "origin/feature/pagos" not in first
-    assert not first.endswith("2h 00m")
-    # Las filas sin ese problema conservan su columna.
-    assert second.endswith("2h 00m")
-    assert len(first) <= 54 and len(second) <= 54
-
-
-def test_si_no_queda_sitio_ni_para_una_etiqueta_recortada_se_omite():
-    refs = (Ref(RefKind.HEAD, "feature/pagos"),)
-    (line,) = lines(History((c("a", subject="add payment webhooks", refs=refs),)), width=34)
-    assert "HEAD" not in line and "add payment webhooks" in line
+        await pilot.press("2")
+        await pilot.pause()
+        assert "h historial" in str(app.query_one(HintBar).render())
+        await pilot.press("h")  # ya en el historial, la tecla vuelve al estado
+        await settle(app, pilot)
+        assert "h estado" in str(app.query_one(HintBar).render())

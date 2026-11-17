@@ -6,6 +6,7 @@ from rich.text import Text
 
 from qcorre.i18n import t
 from qcorre.ui import theme
+from qcorre.ui.styles import heading
 
 # (título de la sección, [(tecla, clave de traducción de lo que hace)])
 SECTIONS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
@@ -14,6 +15,7 @@ SECTIONS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
         (
             ("↑ ↓", "help.move"),
             ("tab", "help.panel"),
+            ("1 2", "help.jump"),
             ("enter", "help.enter"),
             ("r", "help.refresh"),
         ),
@@ -59,7 +61,7 @@ def help_body() -> Text:
     for index, (title, keys) in enumerate(SECTIONS):
         if index:
             text.append("\n\n")
-        text.append(t(title), style=f"bold {theme.FOREGROUND}")
+        text.append_text(heading(t(title)))
         for key, label in keys:
             text.append("\n  " + key.ljust(key_width), style=f"bold {theme.ACCENT}")
             text.append("  " + t(label), style=theme.FOREGROUND)

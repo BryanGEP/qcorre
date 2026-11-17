@@ -33,7 +33,7 @@ def test_running_for_en_los_dos_idiomas():
         assert running_for(5 * H) == "lleva 5 horas"
         assert running_for(30) == "lleva 1 minuto"
         i18n.set_language("en")
-        assert running_for(3 * D) == "running for 3 days"
-        assert running_for(1 * H) == "running for 1 hour"
+        assert running_for(3 * D) == "up 3 days"
+        assert running_for(1 * H) == "up 1 hour"
     finally:
         i18n.set_language(previous)

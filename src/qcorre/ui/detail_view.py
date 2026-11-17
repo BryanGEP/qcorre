@@ -15,6 +15,7 @@ from qcorre.i18n import t
 from qcorre.models import DevProcess, ProcessInfo, Project
 from qcorre.ui import theme
 from qcorre.ui.format import orphan_notes, short_duration
+from qcorre.ui.styles import heading
 
 # Largo máximo del comando de cada miembro en la lista de procesos incluidos.
 _MEMBER_COMMAND_WIDTH = 68
@@ -74,7 +75,8 @@ def detail_body(process: DevProcess, project: Project | None, now: float) -> Tex
         field("status", " · ".join(notes), theme.WARNING)
 
     if len(process.members) > 1:
-        text.append("\n\n" + t("detail.members", n=len(process.members)), style=theme.MUTED)
+        text.append("\n\n")
+        text.append_text(heading(t("detail.members", n=len(process.members))))
         pid_width = max(len(str(m.pid)) for m in process.members)
         for member in process.members:
             command = command_line(member) or member.name

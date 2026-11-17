@@ -189,9 +189,19 @@ def _project_heading(project: Project, note: str) -> Text:
 
 
 def _error_text(error: GitError) -> Text:
+    """Qué pasó, lo que dijo git (si sirve) y qué puede hacer el usuario."""
     text = Text()
-    key = f"git.error.{error.reason}"
-    text.append(t(key), style=theme.WARNING)
+    text.append(t(f"git.error.{error.reason}"), style=theme.WARNING)
     if error.reason == "failed" and error.detail:
         text.append("\n\n" + error.detail, style=theme.MUTED)
+    text.append("\n\n" + t(_error_hint(error)), style=theme.FOREGROUND)
     return text
+
+
+def _error_hint(error: GitError) -> str:
+    """La acción sugerida para cada error."""
+    if error.reason == "not_installed":
+        return "git.error.hint.install"
+    if "not a git repository" in error.detail.lower():
+        return "git.error.hint.not_repo"
+    return "git.error.hint.retry"

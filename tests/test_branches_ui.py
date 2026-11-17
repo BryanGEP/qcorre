@@ -377,5 +377,7 @@ async def test_el_pie_incluye_ramas_y_deshacer():
     app = make_app(FakeExecutor())
     async with app.run_test(size=(120, 40)) as pilot:
         await settle(app, pilot)
-        second = str(app.query_one(HintBar).render()).splitlines()[1]
-        assert "b ramas" in second and "u deshacer" in second
+        await pilot.press("2")
+        await pilot.pause()
+        line = str(app.query_one(HintBar).render())
+        assert "b ramas" in line and "u deshacer" in line

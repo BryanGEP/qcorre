@@ -18,6 +18,7 @@ from textual.widgets import Input, Static
 from qcorre.i18n import t
 from qcorre.ui import theme
 from qcorre.ui.dialog import DialogScreen
+from qcorre.ui.styles import Key, keys_line
 
 
 class ConfirmScreen(DialogScreen[bool]):
@@ -51,14 +52,12 @@ class ConfirmScreen(DialogScreen[bool]):
             yield Static(self._keys(), id="dialog-keys")
 
     def _keys(self) -> Text:
-        accent = theme.ERROR if self.danger else theme.ACCENT
-        line = Text(justify="right")
-        line.append("enter", style=f"bold {accent}")
-        line.append(" " + t(self.confirm_key), style=theme.FOREGROUND)
-        line.append("     ")
-        line.append("esc", style=f"bold {theme.ACCENT}")
-        line.append(" " + t("confirm.cancel"), style=theme.MUTED)
-        return line
+        return keys_line(
+            [
+                Key("enter", t(self.confirm_key), primary=True, danger=self.danger),
+                Key("esc", t("confirm.cancel")),
+            ]
+        )
 
     def action_confirm(self) -> None:
         self.dismiss(True)
@@ -88,10 +87,7 @@ class InfoScreen(DialogScreen[None]):
         with Vertical(id="dialog"):
             with VerticalScroll(id="dialog-body"):
                 yield Static(self.body)
-            keys = Text(justify="right")
-            keys.append("esc", style=f"bold {theme.ACCENT}")
-            keys.append(" " + t("info.close"), style=theme.MUTED)
-            yield Static(keys, id="dialog-keys")
+            yield Static(keys_line([Key("esc", t("info.close"))]), id="dialog-keys")
 
     def action_close(self) -> None:
         self.dismiss(None)
@@ -146,13 +142,9 @@ class PromptScreen(DialogScreen[str | None]):
         self.query_one(Input).focus()
 
     def _keys(self) -> Text:
-        line = Text(justify="right")
-        line.append("enter", style=f"bold {theme.ACCENT}")
-        line.append(" " + t(self.confirm_key), style=theme.FOREGROUND)
-        line.append("     ")
-        line.append("esc", style=f"bold {theme.ACCENT}")
-        line.append(" " + t("confirm.cancel"), style=theme.MUTED)
-        return line
+        return keys_line(
+            [Key("enter", t(self.confirm_key), primary=True), Key("esc", t("confirm.cancel"))]
+        )
 
     def on_input_changed(self, event: Input.Changed) -> None:
         self.query_one("#dialog-preview", Static).update(self.preview(event.value))
