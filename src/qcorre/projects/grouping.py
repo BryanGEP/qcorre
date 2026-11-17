@@ -195,7 +195,8 @@ def with_pinned(snapshot: Snapshot, roots: Iterable[ProjectRoot]) -> Snapshot:
     así se puede ver su git aunque no haya nada corriendo.
     """
     present = {project.root for project in snapshot.projects}
-    extra = [Project(root=root, processes=()) for root in dict.fromkeys(roots) if root not in present]
+    missing = [root for root in dict.fromkeys(roots) if root not in present]
+    extra = [Project(root=root, processes=()) for root in missing]
     if not extra:
         return snapshot
     projects = sorted(

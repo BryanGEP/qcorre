@@ -45,6 +45,7 @@ from qcorre.ui.branch_view import (
 from qcorre.ui.confirm import ConfirmScreen, InfoScreen, PromptScreen
 from qcorre.ui.detail_view import detail_body
 from qcorre.ui.git_panel import HISTORY, GitPanel
+from qcorre.ui.help_view import help_body
 from qcorre.ui.kill_view import KillGroup, kill_body, result_message
 from qcorre.ui.picker import PickerKey, PickerScreen
 from qcorre.ui.projects_panel import ProjectsPanel
@@ -58,10 +59,12 @@ REFRESH_SECONDS = 3.0
 class QcorreApp(App[None]):
     """Panel del desarrollador: procesos por proyecto y git amigable.
 
-    ``scanner`` es cualquier función que devuelva un ``Snapshot``, ``killer``
-    quien cierra procesos y ``git_reader`` una función que lee el estado de un
-    repo. Por defecto se usa el sistema real; los tests y el modo demo pasan
-    los suyos.
+    Cada pieza que toca el sistema se puede sustituir: ``scanner`` (devuelve
+    un ``Snapshot``), ``killer`` (cierra procesos) y las de git (``git_reader``,
+    ``git_executor``, ``branch_reader``, ``backup_reader``, ``history_reader``).
+    Por defecto se usa el sistema real; los tests y el modo demo
+    (``qcorre.demo.DemoWorld``) pasan las suyas. ``demo`` solo añade el
+    distintivo "DEMO" en la cabecera.
     """
 
     TITLE = "qcorre"
@@ -79,6 +82,7 @@ class QcorreApp(App[None]):
         Binding("u", "undo", show=False),
         Binding("a", "toggle_files", show=False),
         Binding("h", "toggle_history", show=False),
+        Binding("question_mark", "help", show=False),
         Binding("r", "refresh", show=False),
         Binding("i", "toggle_language", show=False),
         Binding("q", "quit", show=False),
@@ -104,6 +108,7 @@ class QcorreApp(App[None]):
             ("u", "hint.undo"),
             ("h", "hint.history"),
             ("i", "hint.language"),
+            ("?", "hint.help"),
             ("q", "hint.quit"),
         ],
     ]
@@ -119,8 +124,10 @@ class QcorreApp(App[None]):
         history_reader: Callable[[Path], History] | None = None,
         *,
         refresh_seconds: float | None = REFRESH_SECONDS,
+        demo: bool = False,
     ) -> None:
         super().__init__()
+        self.demo = demo
         if scanner is None:
             from qcorre.scanner import Scanner
 
@@ -145,7 +152,7 @@ class QcorreApp(App[None]):
         return {**QCORRE_THEME.variables, **super().get_css_variables()}
 
     def compose(self) -> ComposeResult:
-        yield Header(id="header")
+        yield Header(id="header", demo=self.demo)
         with Horizontal(id="body"):
             yield ProjectsPanel(id="projects")
             yield GitPanel(id="git")
@@ -164,6 +171,7 @@ class QcorreApp(App[None]):
             "undo",
             "toggle_files",
             "toggle_history",
+            "help",
         }
     )
 
@@ -505,6 +513,12 @@ class QcorreApp(App[None]):
             return
         victims = [victim for _, group in groups for victim in group]
         self.run_worker(lambda: self.killer.kill(victims), thread=True, group="kill")
+
+    # ── Ayuda ───────────────────────────────────────────────────
+
+    def action_help(self) -> None:
+        """Muestra todos los atajos de teclado."""
+        self.push_screen(InfoScreen(t("help.title"), help_body()))
 
     # ── Idioma ──────────────────────────────────────────────────
 

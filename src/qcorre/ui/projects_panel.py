@@ -166,16 +166,30 @@ class ProjectsPanel(Panel):
         self.call_after_refresh(self._restore_cursor, cursor_key, cursor_line)
 
     def _restore_cursor(self, key: tuple | None, fallback_line: int) -> None:
-        """Devuelve el cursor a la misma fila; si ya no existe, a la misma altura."""
+        """Devuelve el cursor a la misma fila tras redibujar el árbol.
+
+        Si la fila ya no existe (el proceso murió), se queda en su proyecto:
+        primero se prueba con la fila del proceso (si el cursor estaba en su
+        nota) y luego con la cabecera del grupo. Así, tras matar un proceso,
+        el panel de git sigue mostrando el mismo proyecto. Solo si el grupo
+        entero desapareció se cae a la misma altura de antes.
+        """
         tree = self.tree
         if tree.last_line < 0:
             return
-        target = min(fallback_line, tree.last_line)
+        lines = {}
         for line in range(tree.last_line + 1):
             node = tree.get_node_at_line(line)
-            if node is not None and node.data is not None and node.data.key == key:
-                target = line
-                break
+            if node is not None and node.data is not None:
+                lines.setdefault(node.data.key, line)
+
+        target = min(fallback_line, tree.last_line)
+        if key is not None:
+            group, pid, _ = key
+            for candidate in (key, (group, pid, False), (group, None, False)):
+                if candidate in lines:
+                    target = lines[candidate]
+                    break
         tree.move_cursor_to_line(target)
         self.post_message(self.Selected(self.selected))
 

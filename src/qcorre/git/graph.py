@@ -210,6 +210,6 @@ def _draw(
             masks[position] |= _LEFT | _RIGHT
             colors[position] = edge_color
 
-    cells = [Cell(_BOX[mask], cell_color) for mask, cell_color in zip(masks, colors)]
+    cells = [Cell(_BOX[mask], tone) for mask, tone in zip(masks, colors, strict=True)]
     cells[2 * column] = Cell(NODE, color)
     return tuple(cells)

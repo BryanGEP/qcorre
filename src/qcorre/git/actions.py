@@ -141,7 +141,8 @@ def plan_push(status: RepoStatus) -> ActionPlan:
             network=True,
         )
     if status.behind:
-        return _blocked(PUSH, title, t("action.push.blocked.behind", n=status.behind, remote=remote))
+        reason = t("action.push.blocked.behind", n=status.behind, remote=remote)
+        return _blocked(PUSH, title, reason)
     if not status.ahead:
         return _blocked(PUSH, title, t("action.push.blocked.nothing", remote=remote))
     target = status.branch

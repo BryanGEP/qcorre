@@ -448,7 +448,40 @@ MESSAGES: dict[str, str | dict[str, str]] = {
         "one": "Se muestra el commit más reciente; hay historial más antiguo.",
         "other": "Se muestran los {n} commits más recientes; hay historial más antiguo.",
     },
+    # Ayuda
+    "help.title": "Ayuda de qcorre",
+    "help.section.move": "Moverse",
+    "help.section.processes": "Procesos",
+    "help.section.git": "Git del proyecto seleccionado",
+    "help.section.app": "Aplicación",
+    "help.move": "moverse por la lista de proyectos y procesos",
+    "help.panel": "cambiar de panel (en el de git, las flechas lo recorren)",
+    "help.enter": "ver el detalle de un proceso, o plegar un proyecto",
+    "help.refresh": "volver a buscar procesos y releer git ahora",
+    "help.kill": "matar el proceso seleccionado (pide confirmación)",
+    "help.kill_all": "matar todos los procesos del proyecto",
+    "help.commit": "guardar todos los cambios en un commit",
+    "help.push": "subir tus commits al remoto",
+    "help.pull": "bajar los commits del remoto",
+    "help.fetch": "actualizar lo que se sabe del remoto, sin cambiar tus archivos",
+    "help.branches": "ver las ramas: cambiar, crear o borrar una ya mergeada",
+    "help.undo": "deshacer: el último commit, tus cambios, o volver a un respaldo",
+    "help.history": "alternar entre el estado y el historial (gráfico de ramas)",
+    "help.files": "ver todos los archivos con cambios, o solo los primeros",
+    "help.language": "cambiar el idioma (español / inglés)",
+    "help.help": "mostrar esta ayuda",
+    "help.quit": "salir",
+    "help.note.preview": (
+        "Antes de cada acción verás qué va a pasar y el comando exacto. Nada se hace sin confirmar."
+    ),
+    "help.note.backup": (
+        "Antes de las acciones riesgosas se guarda un respaldo en refs/qcorre/backup; "
+        "se recupera con la tecla u."
+    ),
+    "help.note.limits": "qcorre no resuelve conflictos, ni hace merge, rebase o push forzado.",
+    "status.demo": "DEMO",
     # Atajos del pie
+    "hint.help": "ayuda",
     "hint.history": "historial",
     "hint.branches": "ramas",
     "hint.undo": "deshacer",

@@ -241,3 +241,31 @@ async def test_q_cierra_la_app():
     async with app.run_test() as pilot:
         await pilot.press("q")
     assert not app.is_running
+
+
+async def test_si_el_proceso_seleccionado_muere_el_cursor_se_queda_en_su_proyecto():
+    snapshots = [sample_snapshot()]
+    app = QcorreApp(
+        scanner=lambda: snapshots[-1], git_reader=sample_status, refresh_seconds=None
+    )
+    async with app.run_test(size=(110, 30)) as pilot:
+        await settle(app, pilot)
+        panel = app.query_one(ProjectsPanel)
+        await pilot.press("down", "down", "down", "down")  # la nota de "node server.js"
+        assert panel.selected.process.label == "node server.js" and panel.selected.is_note
+
+        # El proceso desaparece: el cursor no debe saltar al proyecto siguiente.
+        base = sample_snapshot()
+        api = base.projects[0]
+        snapshots.append(Snapshot((Project(api.root, api.processes[:2]), base.projects[1]), base.unassigned))
+        await pilot.press("r")
+        await settle(app, pilot)
+        assert panel.selected.project.name == "tienda-api"
+        assert panel.selected.process is None  # quedó en la cabecera del proyecto
+        assert app.query_one(GitPanel).project.name == "tienda-api"
+
+        # Si desaparece el proyecto entero, se cae a la misma altura.
+        snapshots.append(Snapshot((base.projects[1],), base.unassigned))
+        await pilot.press("r")
+        await settle(app, pilot)
+        assert panel.selected is not None and panel.selected.project.name == "tienda-web"

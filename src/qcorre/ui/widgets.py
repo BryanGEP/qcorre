@@ -26,9 +26,10 @@ KEY_GLYPHS = {"updown": "↑↓", "escape": "esc"}
 class Header(Horizontal):
     """Cabecera: marca a la izquierda; conteos e idioma a la derecha."""
 
-    def __init__(self, *, id: str) -> None:
+    def __init__(self, *, id: str, demo: bool = False) -> None:
         super().__init__(id=id)
         self._counts: tuple[int, int] | None = None
+        self.demo = demo  # los datos son simulados: se avisa para que nadie se confunda
 
     def compose(self) -> ComposeResult:
         yield Static(id="brand")
@@ -49,6 +50,10 @@ class Header(Horizontal):
         self.query_one("#brand", Static).update(brand)
 
         status = Text()
+        if self.demo:
+            badge = f"bold {theme.BACKGROUND} on {theme.WARNING}"
+            status.append(f" {t('status.demo')} ", style=badge)
+            status.append("  ")
         if self._counts is not None:
             projects, processes = self._counts
             status.append(t("status.projects", n=projects), style=theme.MUTED)
