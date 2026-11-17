@@ -1,12 +1,11 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-fancy-pypi-readme>=24.1"]
 build-backend = "hatchling.build"
 
 [project]
 name = "qcorre"
-dynamic = ["version"]
+dynamic = ["version", "readme"]
 description = "See what's running on your machine, grouped by project, and use git in plain language. A terminal dashboard for developers."
-readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
@@ -42,10 +41,12 @@ dev = [
     "ruff>=0.6",
 ]
 
+# Nombres que PyPI reconoce y muestra con su icono.
 [project.urls]
-Repositorio = "https://github.com/BryanGEP/qcorre"
-Incidencias = "https://github.com/BryanGEP/qcorre/issues"
-Cambios = "https://github.com/BryanGEP/qcorre/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/BryanGEP/qcorre"
+Source = "https://github.com/BryanGEP/qcorre"
+Issues = "https://github.com/BryanGEP/qcorre/issues"
+Changelog = "https://github.com/BryanGEP/qcorre/blob/main/CHANGELOG.md"
 
 [project.scripts]
 qcorre = "qcorre.cli:main"
@@ -55,6 +56,33 @@ path = "src/qcorre/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/qcorre"]
+
+# ── Descripción para PyPI ───────────────────────────────────────
+# Es el README.md tal cual, con un cambio: en GitHub las imágenes y los enlaces
+# a otros archivos del repo son rutas relativas (docs/demo.gif, LICENSE...),
+# que en la página de PyPI no llevarían a ningún lado. Al construir el paquete
+# se convierten en URLs absolutas fijadas al tag de la versión (v0.1.0...), así
+# la página de cada versión en PyPI muestra siempre sus propias imágenes.
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+# Imágenes del repo: src="docs/..." -> archivo crudo en GitHub.
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = 'src="(?!https?://)([^"]+)"'
+replacement = 'src="https://raw.githubusercontent.com/BryanGEP/qcorre/v$HFPR_VERSION/\1"'
+
+# Enlaces HTML a archivos del repo: href="LICENSE" -> página del archivo en GitHub.
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = 'href="(?!https?://|#|mailto:)([^"]+)"'
+replacement = 'href="https://github.com/BryanGEP/qcorre/blob/v$HFPR_VERSION/\1"'
+
+# Enlaces Markdown a archivos del repo: [texto](CHANGELOG.md) -> lo mismo.
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((?!https?://|#|mailto:)([^)\s]+)\)'
+replacement = '](https://github.com/BryanGEP/qcorre/blob/v$HFPR_VERSION/\1)'
 
 [tool.hatch.build.targets.sdist]
 # El GIF, las capturas y el guion que los graba son para el repo, no para el paquete.

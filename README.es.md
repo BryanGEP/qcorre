@@ -6,6 +6,7 @@
 </p>
 
 <p align="center">
+  <a href="https://pypi.org/project/qcorre/"><img src="https://img.shields.io/pypi/v/qcorre?color=3776ab" alt="Versión en PyPI"></a>
   <a href="https://github.com/BryanGEP/qcorre/actions/workflows/ci.yml"><img src="https://github.com/BryanGEP/qcorre/actions/workflows/ci.yml/badge.svg" alt="Estado del CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="Licencia MIT"></a>
   <img src="https://img.shields.io/badge/python-3.10%20%E2%80%93%203.14-3776ab?logo=python&logoColor=white" alt="Python 3.10 a 3.14">
@@ -102,17 +103,22 @@ La interfaz está en **español e inglés** (tecla `i`).
 
 Necesitas **Python 3.10 o superior** y **git**.
 
-qcorre todavía no está en PyPI, así que se instala directo desde GitHub:
-
 ```bash
-# con pipx
-pipx install git+https://github.com/BryanGEP/qcorre
+# recomendado: pipx lo instala en su propio entorno
+pipx install qcorre
 
-# o ejecútalo una vez con uv, sin instalar nada de forma permanente
-uvx --from git+https://github.com/BryanGEP/qcorre qcorre
+# o ejecútalo sin instalar nada de forma permanente, con uv
+uvx qcorre
+
+# o con pip a secas
+pip install qcorre
 ```
 
-Cuando esté publicado bastará con `pipx install qcorre` o `uvx qcorre`.
+Para probar la versión en desarrollo, directo desde GitHub:
+
+```bash
+pipx install git+https://github.com/BryanGEP/qcorre
+```
 
 ## Uso
 

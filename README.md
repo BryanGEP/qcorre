@@ -6,6 +6,7 @@
 </p>
 
 <p align="center">
+  <a href="https://pypi.org/project/qcorre/"><img src="https://img.shields.io/pypi/v/qcorre?color=3776ab" alt="Version on PyPI"></a>
   <a href="https://github.com/BryanGEP/qcorre/actions/workflows/ci.yml"><img src="https://github.com/BryanGEP/qcorre/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/python-3.10%20%E2%80%93%203.14-3776ab?logo=python&logoColor=white" alt="Python 3.10 to 3.14">
@@ -97,17 +98,22 @@ The interface is available in **English and Spanish** (key `i`).
 
 You need **Python 3.10+** and **git**.
 
-qcorre isn't on PyPI yet, so install it straight from GitHub:
-
 ```bash
-# with pipx
-pipx install git+https://github.com/BryanGEP/qcorre
+# recommended: pipx installs it in its own environment
+pipx install qcorre
 
-# or run it once with uv, without installing anything permanently
-uvx --from git+https://github.com/BryanGEP/qcorre qcorre
+# or run it without installing anything permanently, with uv
+uvx qcorre
+
+# or with plain pip
+pip install qcorre
 ```
 
-Once it is published, `pipx install qcorre` or `uvx qcorre` will be enough.
+To try the latest development version, straight from GitHub:
+
+```bash
+pipx install git+https://github.com/BryanGEP/qcorre
+```
 
 ## Usage
 

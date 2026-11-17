@@ -1,0 +1,120 @@
+# Publica una versión de qcorre al subir un tag vX.Y.Z.
+#
+# 1. Corre el CI completo (tests en Windows, macOS y Linux).
+# 2. Construye el paquete y comprueba que el tag coincide con su versión, que
+#    está en main y que el CHANGELOG tiene la entrada de esa versión.
+# 3. Lo publica en PyPI con Trusted Publishing: PyPI confía en este workflow
+#    (environment "pypi") y no hace falta ningún token guardado.
+# 4. Crea el GitHub Release con las notas del CHANGELOG y los archivos.
+#
+# Si cualquier paso falla, los siguientes no se ejecutan: nunca queda una
+# versión publicada en PyPI sin haber pasado las comprobaciones.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+# Dos tags a la vez no deben pisarse, y una publicación en curso no se cancela.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Construir y verificar
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # hace falta la historia para comprobar que el tag está en main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: El tag debe apuntar a un commit de main
+        run: |
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::El tag $GITHUB_REF_NAME no apunta a un commit de main. Publica solo desde main."
+            exit 1
+          fi
+
+      - name: Construir el paquete
+        run: |
+          # readme-renderer[md] es el que dibuja el Markdown: sin él, twine
+          # check da por buena la descripción sin llegar a renderizarla.
+          python -m pip install --upgrade build twine "readme-renderer[md]"
+          python -m build
+
+      - name: Validar la descripción para PyPI
+        run: twine check --strict dist/*
+
+      - name: Comprobar versión, descripción y notas del CHANGELOG
+        run: >-
+          python scripts/release_check.py --tag "$GITHUB_REF_NAME" --dist dist
+          --notes release-notes.md --render
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+
+  publish:
+    name: Publicar en PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/qcorre/
+    permissions:
+      id-token: write  # lo único que necesita Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    name: Crear el GitHub Release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+
+      - name: Crear el release con las notas y los archivos
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --verify-tag \
+            --title "qcorre ${GITHUB_REF_NAME#v}" \
+            --notes-file release-notes.md
