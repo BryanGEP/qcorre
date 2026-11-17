@@ -437,7 +437,19 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "undo.backup.changes": "con cambios sin guardar",
     "undo.key.select": "elegir",
     "picker.close": "cerrar",
+    # Historial
+    "git.tab.status": "Estado",
+    "git.tab.history": "Historial",
+    "git.tab.switch": "cambia de vista",
+    "history.loading": "Leyendo el historial…",
+    "history.empty": "Este repo todavía no tiene commits: aún no hay historial que mostrar.",
+    "history.no_subject": "(sin mensaje)",
+    "history.truncated": {
+        "one": "Se muestra el commit más reciente; hay historial más antiguo.",
+        "other": "Se muestran los {n} commits más recientes; hay historial más antiguo.",
+    },
     # Atajos del pie
+    "hint.history": "historial",
     "hint.branches": "ramas",
     "hint.undo": "deshacer",
     "hint.commit": "commit",

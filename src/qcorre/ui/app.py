@@ -20,6 +20,7 @@ from qcorre.git import actions
 from qcorre.git.actions import ActionPlan, ActionResult
 from qcorre.git.backup import Backup, list_backups
 from qcorre.git.branches import BranchList, read_branches
+from qcorre.git.history import History, read_history
 from qcorre.git.parse import RepoStatus
 from qcorre.git.runner import GitError, GitRunner
 from qcorre.git.status import read_status
@@ -43,7 +44,7 @@ from qcorre.ui.branch_view import (
 )
 from qcorre.ui.confirm import ConfirmScreen, InfoScreen, PromptScreen
 from qcorre.ui.detail_view import detail_body
-from qcorre.ui.git_panel import GitPanel
+from qcorre.ui.git_panel import HISTORY, GitPanel
 from qcorre.ui.kill_view import KillGroup, kill_body, result_message
 from qcorre.ui.picker import PickerKey, PickerScreen
 from qcorre.ui.projects_panel import ProjectsPanel
@@ -77,6 +78,7 @@ class QcorreApp(App[None]):
         Binding("b", "branches", show=False),
         Binding("u", "undo", show=False),
         Binding("a", "toggle_files", show=False),
+        Binding("h", "toggle_history", show=False),
         Binding("r", "refresh", show=False),
         Binding("i", "toggle_language", show=False),
         Binding("q", "quit", show=False),
@@ -100,6 +102,7 @@ class QcorreApp(App[None]):
             ("f", "hint.fetch"),
             ("b", "hint.branches"),
             ("u", "hint.undo"),
+            ("h", "hint.history"),
             ("i", "hint.language"),
             ("q", "hint.quit"),
         ],
@@ -113,6 +116,7 @@ class QcorreApp(App[None]):
         git_executor: Callable[[Path, ActionPlan], ActionResult] | None = None,
         branch_reader: Callable[[Path], BranchList] | None = None,
         backup_reader: Callable[[Path], list[Backup]] | None = None,
+        history_reader: Callable[[Path], History] | None = None,
         *,
         refresh_seconds: float | None = REFRESH_SECONDS,
     ) -> None:
@@ -127,6 +131,7 @@ class QcorreApp(App[None]):
         self.git_executor = git_executor or _execute_with_git
         self.branch_reader = branch_reader or read_branches
         self.backup_reader = backup_reader or _read_backups
+        self.history_reader = history_reader or read_history
         self.refresh_seconds = refresh_seconds
         self.register_theme(QCORRE_THEME)
         self.theme = QCORRE_THEME.name
@@ -158,6 +163,7 @@ class QcorreApp(App[None]):
             "branches",
             "undo",
             "toggle_files",
+            "toggle_history",
         }
     )
 
@@ -190,6 +196,10 @@ class QcorreApp(App[None]):
         if event.worker.group == "git":
             path, result = event.worker.result
             self.query_one(GitPanel).show_status(path, result)
+            return
+        if event.worker.group == "history":
+            path, result = event.worker.result
+            self.query_one(GitPanel).show_history(path, result)
             return
         if event.worker.group == "gitop":
             self._action_finished(event.worker.result)
@@ -233,6 +243,34 @@ class QcorreApp(App[None]):
         # ``exclusive`` descarta la lectura anterior si el usuario ya se movió
         # a otro proyecto.
         self.run_worker(read, thread=True, group="git", exclusive=True, exit_on_error=False)
+        # El historial solo se lee mientras se está mirando.
+        if self.query_one(GitPanel).mode == HISTORY:
+            self._load_history()
+
+    def _load_history(self) -> None:
+        """Lee en un hilo aparte el historial del proyecto seleccionado."""
+        project = self.query_one(GitPanel).project
+        if project is None or not project.has_git:
+            return
+        path = project.path
+
+        def read() -> tuple[Path, History | GitError]:
+            try:
+                return path, self.history_reader(path)
+            except GitError as error:
+                return path, error
+
+        self.run_worker(read, thread=True, group="history", exclusive=True, exit_on_error=False)
+
+    def action_toggle_history(self) -> None:
+        """Alterna el panel de git entre el estado y el historial."""
+        panel = self.query_one(GitPanel)
+        if not panel.has_repo:
+            self.notify(t("action.no_repo"), severity="warning")
+            return
+        panel.toggle_history()
+        if panel.mode == HISTORY:
+            self._load_history()
 
     # ── Acciones de git ─────────────────────────────────────────
 

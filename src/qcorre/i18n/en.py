@@ -433,7 +433,19 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "undo.backup.changes": "with unsaved changes",
     "undo.key.select": "choose",
     "picker.close": "close",
+    # Historial
+    "git.tab.status": "Status",
+    "git.tab.history": "History",
+    "git.tab.switch": "switches view",
+    "history.loading": "Reading the history…",
+    "history.empty": "This repo has no commits yet: there is no history to show.",
+    "history.no_subject": "(no message)",
+    "history.truncated": {
+        "one": "Showing the most recent commit; there is older history.",
+        "other": "Showing the {n} most recent commits; there is older history.",
+    },
     # Atajos del pie
+    "hint.history": "history",
     "hint.branches": "branches",
     "hint.undo": "undo",
     "hint.commit": "commit",
