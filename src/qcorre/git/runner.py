@@ -91,6 +91,9 @@ class GitRunner:
                 errors="replace",
                 timeout=timeout,
                 creationflags=_creation_flags(),
+                # Sin terminal de control, ssh no puede pedir una contraseña
+                # por la terminal (rompería la pantalla y se quedaría esperando).
+                start_new_session=os.name == "posix",
             )
         except FileNotFoundError as error:
             raise GitError("not_installed", str(error), command) from error
@@ -120,7 +123,9 @@ def _environment() -> dict[str, str]:
             # Mensajes en inglés y con formato fijo, para poder interpretarlos.
             "LC_ALL": "C",
             "LANGUAGE": "en",
-            # Si hace falta una contraseña, que falle en vez de quedarse esperando.
+            # Si hace falta usuario o contraseña, que falle en vez de quedarse
+            # esperando en la terminal. Los gestores de credenciales con ventana
+            # propia (como el de Git para Windows) siguen funcionando.
             "GIT_TERMINAL_PROMPT": "0",
             # Las lecturas en segundo plano no deben bloquear al git del usuario.
             "GIT_OPTIONAL_LOCKS": "0",

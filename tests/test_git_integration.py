@@ -104,8 +104,8 @@ def test_cambios_de_todo_tipo(repo):
     assert kinds["README.md"] is ChangeKind.MODIFIED
     assert kinds["borrar.txt"] is ChangeKind.DELETED
     assert kinds["renombrado.txt"] is ChangeKind.RENAMED
-    # Una carpeta nueva se lista como carpeta, con su nombre tal cual (sin escapar).
-    assert kinds["docs/"] is ChangeKind.NEW
+    # Los archivos nuevos se listan uno por uno, con su nombre tal cual (sin escapar).
+    assert kinds["docs/guía de uso.md"] is ChangeKind.NEW
     renamed = next(f for f in status.files if f.path == "renombrado.txt")
     assert renamed.orig_path == "renombrar.txt"
     assert renamed.staged

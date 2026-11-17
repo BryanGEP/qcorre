@@ -37,7 +37,8 @@ class FakeExecutor:
         steps = tuple(GitResult(args, code, "", self.stderr or "") for args in plan.commands[:1])
         backup = None
         if plan.backup_ref:
-            backup = Backup(plan.backup_ref, "a" * 40, "pull", 0.0)
+            name = plan.backup_ref.rsplit("/", 1)[-1]
+            backup = Backup(name, plan.backup_ref + "/rama/main", "a" * 40, "pull", 0.0, "main")
         return ActionResult(plan, steps, backup)
 
 

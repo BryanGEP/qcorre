@@ -1,19 +1,23 @@
-"""Acciones de git: commit, push, pull y actualizar del remoto.
+"""Acciones de git: commit, push, pull, ramas y deshacer.
 
 Cada acción se prepara primero como un ``ActionPlan``: datos puros que dicen
 qué va a pasar y qué comandos exactos se van a correr. La interfaz muestra el
 plan y, solo si el usuario confirma, ``execute`` lo ejecuta tal cual. Así la
 vista previa y lo que se hace salen del mismo objeto y no pueden diferir.
 
-Fuera de alcance en v1: merge, rebase y push forzado. Si una acción los
-necesitaría, el plan sale bloqueado con la explicación.
+Las acciones que pueden hacer perder algo llevan ``backup_ref``: antes de
+ejecutarlas se crea un respaldo (ver ``qcorre.git.backup``).
+
+Fuera de alcance en v1: merge, rebase, push forzado y ``branch -D``. Si una
+acción los necesitaría, el plan sale bloqueado con la explicación.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from qcorre.git.backup import Backup, backup_ref, create_backup
+from qcorre.git.backup import Backup, backup_ref, create_backup, delete_backup
+from qcorre.git.branches import Branch
 from qcorre.git.parse import RepoStatus
 from qcorre.git.runner import GitError, GitResult, GitRunner, format_command
 from qcorre.i18n import t
@@ -25,6 +29,15 @@ COMMIT = "commit"
 PUSH = "push"
 PULL = "pull"
 FETCH = "fetch"
+SWITCH = "switch"
+NEW_BRANCH = "branch"
+DELETE_BRANCH = "delete"
+UNDO_COMMIT = "undo"
+DISCARD = "discard"
+RESTORE = "restore"
+
+# Caracteres que git no admite en el nombre de una rama.
+_FORBIDDEN_IN_BRANCH = set(" ~^:?*[\\\t")
 
 
 @dataclass(frozen=True)
@@ -38,6 +51,7 @@ class ActionPlan:
     network: bool = False  # se conecta al remoto
     backup_ref: str | None = None  # respaldo que se crea antes (acciones riesgosas)
     blocked: str | None = None  # por qué no se puede hacer ahora
+    danger: bool = False  # la acción descarta o borra algo: el diálogo va en rojo
 
     @property
     def command_lines(self) -> tuple[str, ...]:
@@ -53,6 +67,7 @@ class ActionResult:
     steps: tuple[GitResult, ...] = ()
     backup: Backup | None = None
     error: GitError | None = None  # git no pudo ni arrancar (o falló el respaldo)
+    unchanged: bool = False  # la rama quedó donde estaba y no había nada que respaldar
 
     @property
     def ok(self) -> bool:
@@ -73,7 +88,7 @@ class ActionResult:
         return (step.stderr.strip() + "\n" + step.stdout.strip()).strip()
 
 
-# ── Planes ──────────────────────────────────────────────────────
+# ── Planes: commit ──────────────────────────────────────────────
 
 
 def plan_commit(status: RepoStatus, message: str) -> ActionPlan:
@@ -97,6 +112,9 @@ def plan_commit(status: RepoStatus, message: str) -> ActionPlan:
         effects=tuple(effects),
         commands=(("add", "-A"), ("commit", "-m", message)),
     )
+
+
+# ── Planes: remoto ──────────────────────────────────────────────
 
 
 def plan_push(status: RepoStatus) -> ActionPlan:
@@ -126,6 +144,9 @@ def plan_push(status: RepoStatus) -> ActionPlan:
         return _blocked(PUSH, title, t("action.push.blocked.behind", n=status.behind, remote=remote))
     if not status.ahead:
         return _blocked(PUSH, title, t("action.push.blocked.nothing", remote=remote))
+    target = status.branch
+    if status.remote_branch != status.branch:
+        target = f"{status.branch}:{status.remote_branch}"
     return ActionPlan(
         action=PUSH,
         title=title,
@@ -133,9 +154,7 @@ def plan_push(status: RepoStatus) -> ActionPlan:
             t("action.push.effect.commits", n=status.ahead, upstream=status.upstream),
             network,
         ),
-        commands=(("push", remote, f"{status.branch}:{status.remote_branch}"),)
-        if status.remote_branch != status.branch
-        else (("push", remote, status.branch),),
+        commands=(("push", remote, target),),
         network=True,
     )
 
@@ -195,6 +214,208 @@ def plan_fetch(status: RepoStatus) -> ActionPlan:
     )
 
 
+# ── Planes: ramas ───────────────────────────────────────────────
+
+
+def plan_switch(status: RepoStatus, branch: Branch, now: float | None = None) -> ActionPlan:
+    """Cambia a otra rama. Si solo existe en el remoto, crea la local que la sigue."""
+    title = t("action.switch.title", branch=branch.name)
+    if branch.current:
+        return _blocked(SWITCH, title, t("action.switch.blocked.current", branch=branch.name))
+    if status.conflicts:
+        return _blocked(SWITCH, title, t("action.blocked.conflicts"))
+
+    here = status.branch or status.short_oid or "?"
+    effects = [t("action.switch.effect.move", origin=here, branch=branch.name)]
+    if branch.remote_only:
+        effects.append(
+            t("action.switch.effect.track", branch=branch.name, upstream=branch.full_remote)
+        )
+        commands: tuple[tuple[str, ...], ...] = (
+            ("switch", "-c", branch.name, "--track", branch.full_remote),
+        )
+    else:
+        commands = (("switch", branch.name),)
+    effects.append(t("action.switch.effect.files"))
+
+    dirty = not status.is_clean
+    if dirty:
+        effects.append(t("action.switch.effect.changes", n=len(status.files)))
+    return ActionPlan(
+        action=SWITCH,
+        title=title,
+        effects=tuple(effects),
+        commands=commands,
+        # Solo hay algo que respaldar si hay cambios sin guardar (y commits).
+        backup_ref=backup_ref(SWITCH, now) if dirty and status.has_commits else None,
+    )
+
+
+def branch_name_problem(name: str) -> str | None:
+    """Por qué ``name`` no sirve como nombre de rama (o ``None`` si sirve)."""
+    if not name:
+        return t("action.branch.invalid.empty")
+    if any(ch in _FORBIDDEN_IN_BRANCH or ord(ch) < 32 for ch in name):
+        return t("action.branch.invalid.chars")
+    bad_edges = name.startswith(("-", "/", ".")) or name.endswith(("/", ".", ".lock"))
+    if bad_edges or ".." in name or "//" in name or "@{" in name or name == "@":
+        return t("action.branch.invalid.format")
+    return None
+
+
+def plan_new_branch(status: RepoStatus, name: str) -> ActionPlan:
+    """Crea una rama nueva desde donde estás y te cambia a ella."""
+    name = name.strip()
+    title = t("action.branch.title")
+    problem = branch_name_problem(name)
+    if problem:
+        return _blocked(NEW_BRANCH, title, problem)
+
+    here = status.branch or status.short_oid or "?"
+    effects = [t("action.branch.effect.create", branch=name, origin=here)]
+    if not status.is_clean:
+        effects.append(t("action.branch.effect.changes", n=len(status.files)))
+    effects.append(t("action.branch.effect.local"))
+    return ActionPlan(
+        action=NEW_BRANCH,
+        title=title,
+        effects=tuple(effects),
+        commands=(("switch", "-c", name),),
+    )
+
+
+def plan_delete_branch(status: RepoStatus, branch: Branch) -> ActionPlan:
+    """Borra una rama local ya mergeada cuya rama remota ya no existe.
+
+    Se usa ``git branch -d``, que se niega a borrar trabajo sin mergear. Nunca
+    se usa ``-D``.
+    """
+    title = t("action.delete.title", branch=branch.name)
+    if branch.current:
+        return _blocked(DELETE_BRANCH, title, t("action.delete.blocked.current"))
+    if branch.remote_only:
+        return _blocked(DELETE_BRANCH, title, t("action.delete.blocked.remote"))
+    if not branch.gone:
+        return _blocked(DELETE_BRANCH, title, t("action.delete.blocked.not_gone"))
+    if not branch.merged:
+        here = status.branch or status.short_oid or "?"
+        return _blocked(
+            DELETE_BRANCH, title, t("action.delete.blocked.unmerged", branch=branch.name, here=here)
+        )
+    return ActionPlan(
+        action=DELETE_BRANCH,
+        title=title,
+        effects=(
+            t("action.delete.effect.local", branch=branch.name),
+            t("action.delete.effect.merged", here=status.branch or status.short_oid or "?"),
+            t("action.delete.effect.safe"),
+        ),
+        commands=(("branch", "-d", branch.name),),
+        danger=True,
+    )
+
+
+# ── Planes: deshacer ────────────────────────────────────────────
+
+
+def plan_undo_commit(status: RepoStatus, now: float | None = None) -> ActionPlan:
+    """Deshace el último commit conservando sus cambios como "sin guardar"."""
+    title = t("action.undo.title")
+    if not status.has_commits:
+        return _blocked(UNDO_COMMIT, title, t("action.undo.blocked.no_commits"))
+    if status.conflicts:
+        return _blocked(UNDO_COMMIT, title, t("action.blocked.conflicts"))
+    if not status.has_parent:
+        return _blocked(UNDO_COMMIT, title, t("action.undo.blocked.first"))
+    if status.upstream and not status.upstream_gone and not status.ahead:
+        # Deshacer algo ya subido obligaría a reescribir el remoto (push forzado).
+        return _blocked(UNDO_COMMIT, title, t("action.undo.blocked.pushed"))
+    return ActionPlan(
+        action=UNDO_COMMIT,
+        title=title,
+        effects=(
+            t("action.undo.effect.commit", subject=status.head_subject or "", oid=status.short_oid),
+            t("action.undo.effect.keep"),
+            t("action.undo.effect.local"),
+        ),
+        commands=(("reset", "--soft", "HEAD~1"),),
+        backup_ref=backup_ref(UNDO_COMMIT, now),
+    )
+
+
+def plan_discard(status: RepoStatus, now: float | None = None) -> ActionPlan:
+    """Descarta los cambios sin guardar: todo vuelve al último commit."""
+    title = t("action.discard.title")
+    if not status.has_commits:
+        return _blocked(DISCARD, title, t("action.undo.blocked.no_commits"))
+    tracked = [f for f in status.files if not f.untracked]
+    untracked = [f for f in status.files if f.untracked]
+    if not tracked:
+        return _blocked(DISCARD, title, t("action.discard.blocked.nothing"))
+
+    effects = [t("action.discard.effect.files", n=len(tracked))]
+    if any("A" in (f.index, f.worktree) for f in tracked):
+        effects.append(t("action.discard.effect.added"))
+    if untracked:
+        effects.append(t("action.discard.effect.untracked", n=len(untracked)))
+    effects.append(t("action.discard.effect.backup"))
+    return ActionPlan(
+        action=DISCARD,
+        title=title,
+        effects=tuple(effects),
+        commands=(("reset", "--hard", "HEAD"),),
+        backup_ref=backup_ref(DISCARD, now),
+        danger=True,
+    )
+
+
+def plan_restore(
+    status: RepoStatus, backup: Backup, now: float | None = None, when: str = ""
+) -> ActionPlan:
+    """Devuelve la rama al punto de un respaldo.
+
+    ``when`` es hace cuánto se creó el respaldo, ya formateado por la interfaz.
+    """
+    title = t("action.restore.title")
+    if not status.has_commits:
+        return _blocked(RESTORE, title, t("action.undo.blocked.no_commits"))
+    if status.conflicts:
+        return _blocked(RESTORE, title, t("action.blocked.conflicts"))
+    if backup.branch and backup.branch != status.branch:
+        return _blocked(
+            RESTORE, title, t("action.restore.blocked.branch", branch=backup.branch)
+        )
+
+    here = status.branch or status.short_oid or "?"
+    effects = [
+        t(
+            "action.restore.effect.move",
+            branch=here,
+            oid=backup.oid[:7],
+            operation=operation_label(backup.operation),
+            when=when,
+        )
+    ]
+    commands: list[tuple[str, ...]] = [("reset", "--hard", backup.ref)]
+    if backup.changes_ref:
+        effects.append(t("action.restore.effect.changes"))
+        commands.append(("stash", "apply", backup.changes_ref))
+    if not status.is_clean:
+        effects.append(t("action.restore.effect.replace", n=len(status.files)))
+    effects.append(t("action.restore.effect.backup"))
+    return ActionPlan(
+        action=RESTORE,
+        title=title,
+        effects=tuple(effects),
+        commands=tuple(commands),
+        backup_ref=backup_ref(RESTORE, now),
+        danger=True,
+    )
+
+
+# ── Utilidades de los planes ────────────────────────────────────
+
+
 def _blocked(action: str, title: str, reason: str) -> ActionPlan:
     return ActionPlan(action=action, title=title, blocked=reason)
 
@@ -224,6 +445,10 @@ def execute(plan: ActionPlan, runner: GitRunner) -> ActionResult:
 
     Se detiene en el primer comando que falle. Nunca lanza: los errores
     vuelven dentro del ``ActionResult``.
+
+    Si al terminar la rama sigue en el mismo commit y no había cambios sin
+    guardar que respaldar, el respaldo no protege nada y se borra (por
+    ejemplo, un pull que no trajo novedades).
     """
     if plan.blocked or not plan.commands:
         return ActionResult(plan, error=GitError("failed", plan.blocked or ""))
@@ -240,7 +465,17 @@ def execute(plan: ActionPlan, runner: GitRunner) -> ActionResult:
                 break
     except GitError as error:
         return ActionResult(plan, tuple(steps), backup, error)
-    return ActionResult(plan, tuple(steps), backup)
+
+    unchanged = False
+    if backup is not None and backup.changes_ref is None:
+        try:
+            head = runner.run("rev-parse", "HEAD").stdout.strip()
+            if head == backup.oid:
+                delete_backup(runner, backup)
+                backup, unchanged = None, True
+        except GitError:
+            pass  # ante la duda, el respaldo se queda
+    return ActionResult(plan, tuple(steps), backup, unchanged=unchanged)
 
 
 # ── Errores explicados ──────────────────────────────────────────
@@ -254,9 +489,13 @@ _KNOWN_FAILURES: tuple[tuple[tuple[str, ...], str], ...] = (
         (
             "authentication failed",
             "could not read username",
-            "permission denied",
+            "could not read password",
             "terminal prompts disabled",
-            "403",
+            "permission denied",
+            "host key verification failed",
+            "invalid credentials",
+            "returned error: 401",
+            "returned error: 403",
         ),
         "failure.auth",
     ),
@@ -273,6 +512,9 @@ _KNOWN_FAILURES: tuple[tuple[tuple[str, ...], str], ...] = (
     (("please tell me who you are", "user.email", "user.name"), "failure.identity"),
     (("nothing to commit",), "failure.nothing_to_commit"),
     (("index.lock",), "failure.locked"),
+    (("not fully merged",), "failure.unmerged"),
+    (("already exists",), "failure.exists"),
+    (("not a valid branch name", "is not a valid"), "failure.branch_name"),
 )
 
 
@@ -287,7 +529,15 @@ def explain_failure(result: ActionResult) -> str:
     return t("failure.unknown")
 
 
+def operation_label(operation: str) -> str:
+    """Nombre humano de la operación de un respaldo ("pull" -> "bajar cambios")."""
+    key = f"backup.op.{operation}"
+    label = t(key)
+    return operation if label == key else label
+
+
 def success_message(result: ActionResult) -> str:
     """Frase corta para avisar que la acción salió bien."""
+    if result.plan.action == PULL and result.unchanged:
+        return t("action.pull.nothing")
     return t(f"action.{result.plan.action}.done")
-

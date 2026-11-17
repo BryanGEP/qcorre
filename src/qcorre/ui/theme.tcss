@@ -102,7 +102,7 @@ Panel:focus, Panel:focus-within {
 
 /* ── Diálogos (confirmación y detalle) ────────────────────── */
 
-ConfirmScreen, InfoScreen, PromptScreen {
+ConfirmScreen, InfoScreen, PromptScreen, PickerScreen {
     align: center middle;
     background: $background 75%;
 }
@@ -130,7 +130,7 @@ InfoScreen #dialog {
 
 #dialog-body {
     height: auto;
-    max-height: 100%;
+    max-height: 60vh;
     scrollbar-size-vertical: 1;
 }
 
@@ -141,6 +141,40 @@ InfoScreen #dialog {
 
 #dialog-prompt {
     height: 1;
+}
+
+PromptScreen #dialog-body {
+    max-height: 45vh;
+}
+
+/* Lista para elegir (ramas, deshacer) */
+
+#picker-note {
+    height: auto;
+    margin-bottom: 1;
+}
+
+#picker-list {
+    height: auto;
+    max-height: 60vh;
+    background: $surface;
+    border: none;
+    padding: 0;
+    scrollbar-size-vertical: 1;
+}
+
+#picker-list > .option-list--option-highlighted {
+    background: $primary 22%;
+    text-style: none;
+}
+
+#picker-list > .option-list--option-disabled {
+    color: $qc-muted;
+}
+
+#picker-list:focus {
+    border: none;
+    background-tint: transparent;
 }
 
 #dialog-input {
