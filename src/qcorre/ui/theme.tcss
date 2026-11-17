@@ -83,9 +83,19 @@ Panel:focus, Panel:focus-within {
     width: 1fr;
 }
 
+#git-tabs {
+    height: 1;
+    margin: 1 1 0 1;
+}
+
 #git-scroll {
     padding: 1 1 0 1;
     scrollbar-size-vertical: 1;
+}
+
+#git-body.one-line {
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
 }
 
 #git-scroll:focus {
