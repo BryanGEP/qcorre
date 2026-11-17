@@ -92,7 +92,8 @@ def commit_body(status: RepoStatus, plan: ActionPlan, *, width: int = 70) -> Tex
 
     risky = sensitive_files(status.files)
     if risky:
-        text.append("\n⚠ " + t("commit.sensitive.title", n=len(risky)) + "\n", style=f"bold {theme.WARNING}")
+        title = t("commit.sensitive.title", n=len(risky))
+        text.append(f"\n⚠ {title}\n", style=f"bold {theme.WARNING}")
         for change in risky:
             text.append("    " + change.path + "\n", style=theme.WARNING)
         text.append("  " + t("commit.sensitive.advice") + "\n", style=theme.WARNING)

@@ -29,18 +29,63 @@ def build_parser() -> argparse.ArgumentParser:
         choices=i18n.LANGUAGES,
         help="idioma de la interfaz / interface language",
     )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help=(
+            "abre la interfaz con procesos y repos simulados; nada real se toca / "
+            "opens the interface with simulated processes and repos; nothing real is touched"
+        ),
+    )
+    parser.add_argument(
+        "--orphan-hours",
+        type=_positive_hours,
+        default=24.0,
+        metavar="H",
+        help=(
+            "horas tras las que un proceso se marca como huérfano (por defecto 24) / "
+            "hours after which a process is flagged as an orphan (default 24)"
+        ),
+    )
     parser.add_argument("--version", action="version", version=f"qcorre {__version__}")
     return parser
+
+
+def _positive_hours(value: str) -> float:
+    """Valida ``--orphan-hours``: un número mayor que cero."""
+    try:
+        hours = float(value)
+    except ValueError:
+        hours = 0.0
+    if hours <= 0:
+        raise argparse.ArgumentTypeError(
+            "debe ser un número mayor que cero / must be a number greater than zero"
+        )
+    return hours
+
+
+def build_app(args: argparse.Namespace):
+    """Crea la aplicación según los argumentos (real o en modo demo)."""
+    # Se importa aquí para que `--help` y `--version` no carguen Textual.
+    from qcorre.ui.app import QcorreApp
+
+    if args.demo:
+        from qcorre.demo import DemoWorld
+
+        return QcorreApp(**DemoWorld().as_kwargs())
+
+    from qcorre.scanner import Scanner
+
+    scanner = Scanner(
+        pinned=[Path(args.path).resolve()],
+        long_running_seconds=args.orphan_hours * 3600,
+    )
+    return QcorreApp(scanner=scanner)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Lee los argumentos, fija el idioma y abre la interfaz."""
     args = build_parser().parse_args(argv)
     i18n.set_language(args.lang or i18n.detect_language())
-
-    # Se importa aquí para que `--help` y `--version` no carguen Textual.
-    from qcorre.scanner import Scanner
-    from qcorre.ui.app import QcorreApp
-
-    QcorreApp(scanner=Scanner(pinned=[Path(args.path).resolve()])).run()
+    build_app(args).run()
     return 0

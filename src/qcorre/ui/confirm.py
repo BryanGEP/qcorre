@@ -13,14 +13,14 @@ from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, VerticalScroll
-from textual.screen import ModalScreen
 from textual.widgets import Input, Static
 
 from qcorre.i18n import t
 from qcorre.ui import theme
+from qcorre.ui.dialog import DialogScreen
 
 
-class ConfirmScreen(ModalScreen[bool]):
+class ConfirmScreen(DialogScreen[bool]):
     """Ventana modal con título, cuerpo y dos salidas: confirmar o cancelar."""
 
     BINDINGS = [
@@ -50,9 +50,6 @@ class ConfirmScreen(ModalScreen[bool]):
                 yield Static(self.body)
             yield Static(self._keys(), id="dialog-keys")
 
-    def on_mount(self) -> None:
-        self.query_one("#dialog").border_title = self.dialog_title
-
     def _keys(self) -> Text:
         accent = theme.ERROR if self.danger else theme.ACCENT
         line = Text(justify="right")
@@ -70,8 +67,11 @@ class ConfirmScreen(ModalScreen[bool]):
         self.dismiss(False)
 
 
-class InfoScreen(ModalScreen[None]):
+class InfoScreen(DialogScreen[None]):
     """Ventana modal de solo lectura (por ejemplo, el detalle de un proceso)."""
+
+    # Solo lleva una línea de teclas: puede aprovechar más alto de la pantalla.
+    BODY_FRACTION = 0.7
 
     BINDINGS = [
         Binding("escape", "close", show=False),
@@ -93,20 +93,20 @@ class InfoScreen(ModalScreen[None]):
             keys.append(" " + t("info.close"), style=theme.MUTED)
             yield Static(keys, id="dialog-keys")
 
-    def on_mount(self) -> None:
-        self.query_one("#dialog").border_title = self.dialog_title
-
     def action_close(self) -> None:
         self.dismiss(None)
 
 
-class PromptScreen(ModalScreen[str | None]):
+class PromptScreen(DialogScreen[str | None]):
     """Pide un texto (el mensaje del commit) con la vista previa debajo.
 
     ``preview`` recibe lo escrito hasta el momento y devuelve el cuerpo del
     diálogo: así el comando exacto se actualiza mientras se teclea. Enter
     confirma (solo si hay texto) y Esc cancela.
     """
+
+    # Además de las teclas lleva el rótulo, el campo de texto y su margen.
+    FIXED_ROWS = 7
 
     BINDINGS = [
         Binding("escape", "cancel", show=False),
@@ -143,7 +143,6 @@ class PromptScreen(ModalScreen[str | None]):
             yield Static(self._keys(), id="dialog-keys")
 
     def on_mount(self) -> None:
-        self.query_one("#dialog").border_title = self.dialog_title
         self.query_one(Input).focus()
 
     def _keys(self) -> Text:

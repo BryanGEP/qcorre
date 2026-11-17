@@ -14,12 +14,12 @@ from textual import events
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
-from textual.screen import ModalScreen
 from textual.widgets import OptionList, Static
 from textual.widgets.option_list import Option
 
 from qcorre.i18n import t
 from qcorre.ui import theme
+from qcorre.ui.dialog import DialogScreen
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,9 @@ class PickerKey:
 PickerResult = tuple[str, str | None]
 
 
-class PickerScreen(ModalScreen[PickerResult | None]):
+class PickerScreen(DialogScreen[PickerResult | None]):
+    BODY = "#picker-list"
+
     BINDINGS = [Binding("escape", "close", show=False)]
 
     def __init__(
@@ -74,7 +76,6 @@ class PickerScreen(ModalScreen[PickerResult | None]):
             yield Static(self._keys(), id="dialog-keys")
 
     def on_mount(self) -> None:
-        self.query_one("#dialog").border_title = self.dialog_title
         options = self.query_one(OptionList)
         options.focus()
         first = next((i for i, c in enumerate(self.choices) if c.id is not None), None)

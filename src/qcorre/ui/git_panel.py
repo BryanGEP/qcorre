@@ -168,7 +168,8 @@ class GitPanel(Panel):
     def _tabs(self) -> Text:
         """Pestañas: la vista activa resaltada y la tecla que las alterna."""
         text = Text(no_wrap=True, overflow="ellipsis")
-        for index, (mode, key) in enumerate(((STATUS, "git.tab.status"), (HISTORY, "git.tab.history"))):
+        tabs = ((STATUS, "git.tab.status"), (HISTORY, "git.tab.history"))
+        for index, (mode, key) in enumerate(tabs):
             if index:
                 text.append("   ")
             active = mode == self.mode

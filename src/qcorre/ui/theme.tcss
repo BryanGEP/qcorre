@@ -138,9 +138,9 @@ InfoScreen #dialog {
     border-title-color: $error;
 }
 
+/* El alto máximo de las zonas con scroll lo fija DialogScreen desde el código. */
 #dialog-body {
     height: auto;
-    max-height: 60vh;
     scrollbar-size-vertical: 1;
 }
 
@@ -153,10 +153,6 @@ InfoScreen #dialog {
     height: 1;
 }
 
-PromptScreen #dialog-body {
-    max-height: 45vh;
-}
-
 /* Lista para elegir (ramas, deshacer) */
 
 #picker-note {
@@ -166,7 +162,6 @@ PromptScreen #dialog-body {
 
 #picker-list {
     height: auto;
-    max-height: 60vh;
     background: $surface;
     border: none;
     padding: 0;

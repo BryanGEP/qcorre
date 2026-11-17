@@ -444,7 +444,40 @@ MESSAGES: dict[str, str | dict[str, str]] = {
         "one": "Showing the most recent commit; there is older history.",
         "other": "Showing the {n} most recent commits; there is older history.",
     },
+    # Ayuda
+    "help.title": "qcorre help",
+    "help.section.move": "Moving around",
+    "help.section.processes": "Processes",
+    "help.section.git": "Git for the selected project",
+    "help.section.app": "Application",
+    "help.move": "move through the list of projects and processes",
+    "help.panel": "switch panel (in the git panel, the arrows scroll it)",
+    "help.enter": "see a process's details, or collapse a project",
+    "help.refresh": "look for processes and re-read git right now",
+    "help.kill": "kill the selected process (asks for confirmation)",
+    "help.kill_all": "kill every process of the project",
+    "help.commit": "save all changes in a commit",
+    "help.push": "upload your commits to the remote",
+    "help.pull": "download the remote's commits",
+    "help.fetch": "update what is known about the remote, without changing your files",
+    "help.branches": "see the branches: switch, create, or delete a merged one",
+    "help.undo": "undo: the last commit, your changes, or go back to a backup",
+    "help.history": "toggle between the status and the history (branch graph)",
+    "help.files": "see every changed file, or just the first ones",
+    "help.language": "switch language (Spanish / English)",
+    "help.help": "show this help",
+    "help.quit": "quit",
+    "help.note.preview": (
+        "Before each action you see what will happen and the exact command. Nothing runs without confirming."
+    ),
+    "help.note.backup": (
+        "Before risky actions a backup is saved under refs/qcorre/backup; "
+        "recover it with the u key."
+    ),
+    "help.note.limits": "qcorre doesn't resolve conflicts, merge, rebase or force-push.",
+    "status.demo": "DEMO",
     # Atajos del pie
+    "hint.help": "help",
     "hint.history": "history",
     "hint.branches": "branches",
     "hint.undo": "undo",
