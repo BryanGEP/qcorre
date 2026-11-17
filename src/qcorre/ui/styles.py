@@ -5,9 +5,9 @@ vea igual en toda la app:
 
 - **Encabezado de sección** ("Qué va a pasar", "Comando exacto", "En tu
   compu"...): negrita en el color del texto.
-- **Tecla:** negrita en el color de acento (en rojo si la acción destruye algo).
-  La etiqueta de la acción principal va en el color del texto; las demás, en
-  gris tenue.
+- **Tecla:** dibujada como una tecla, en una píldora del color de acento (roja
+  si la acción destruye algo). La etiqueta de la acción principal va en el
+  color del texto; las demás, en gris tenue.
 """
 
 from __future__ import annotations
@@ -39,7 +39,14 @@ class Key:
 
 
 def key_width(item: Key) -> int:
-    return len(item.key) + 1 + len(item.label)
+    """Columnas que ocupa: la píldora (con un espacio a cada lado) y la etiqueta."""
+    return len(item.key) + 2 + 1 + len(item.label)
+
+
+def keycap(key: str, *, danger: bool = False) -> Text:
+    """Una tecla dibujada: `` c `` sobre una píldora de color."""
+    color = theme.ERROR if danger else theme.ACCENT
+    return Text(f" {key} ", style=f"bold {theme.BACKGROUND} on {color}")
 
 
 def keys_line(items: Sequence[Key], *, justify: str = "left") -> Text:
@@ -48,8 +55,7 @@ def keys_line(items: Sequence[Key], *, justify: str = "left") -> Text:
     for index, item in enumerate(items):
         if index:
             text.append(KEY_GAP)
-        key_color = theme.ERROR if item.danger else theme.ACCENT
-        text.append(item.key, style=f"bold {key_color}")
+        text.append_text(keycap(item.key, danger=item.danger))
         label_color = theme.FOREGROUND if item.primary else theme.MUTED
         text.append(" " + item.label, style=label_color)
     return text

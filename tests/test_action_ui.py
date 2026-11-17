@@ -250,8 +250,9 @@ async def test_con_el_panel_de_git_activo_el_pie_muestra_sus_acciones():
         await pilot.press("2")
         await pilot.pause()
         bar = app.query_one(HintBar)
-        line = str(bar.render())
-        assert "\n" not in line and bar.size.height == 1
+        raw = str(bar.render())
+        assert "\n" not in raw and bar.size.height == 1
+        line = " ".join(raw.split())
         for hint in ("c commit", "p push", "l pull", "b ramas", "? ayuda", "q salir"):
             assert hint in line
         assert "k matar" not in line  # matar es del panel de proyectos

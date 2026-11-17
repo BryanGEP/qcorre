@@ -44,6 +44,7 @@ SECTIONS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
         "help.section.app",
         (
             ("i", "help.language"),
+            ("t", "help.theme"),
             ("?", "help.help"),
             ("q", "help.quit"),
         ),

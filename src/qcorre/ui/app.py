@@ -26,6 +26,7 @@ from qcorre.git.runner import GitError, GitRunner
 from qcorre.git.status import read_status
 from qcorre.i18n import t
 from qcorre.models import DevProcess, Snapshot
+from qcorre.ui import theme
 from qcorre.ui.action_view import (
     blocked_body,
     blocked_reason,
@@ -49,7 +50,6 @@ from qcorre.ui.help_view import help_body
 from qcorre.ui.kill_view import KillGroup, kill_body, result_message
 from qcorre.ui.picker import PickerKey, PickerScreen
 from qcorre.ui.projects_panel import ProjectsPanel
-from qcorre.ui.theme import QCORRE_THEME
 from qcorre.ui.widgets import Header, HintBar
 
 # Cada cuántos segundos se vuelve a escanear el sistema.
@@ -87,6 +87,7 @@ class QcorreApp(App[None]):
         Binding("2", "focus_panel('git')", show=False),
         Binding("r", "refresh", show=False),
         Binding("i", "toggle_language", show=False),
+        Binding("t", "toggle_theme", show=False),
         Binding("q", "quit", show=False),
     ]
 
@@ -106,9 +107,13 @@ class QcorreApp(App[None]):
         *,
         refresh_seconds: float | None = REFRESH_SECONDS,
         demo: bool = False,
+        theme_name: str = theme.DEFAULT_THEME,
     ) -> None:
         super().__init__()
         self.demo = demo
+        for name in theme.THEMES:
+            self.register_theme(theme.textual_theme(name))
+        self.use_theme(theme_name)
         if scanner is None:
             from qcorre.scanner import Scanner
 
@@ -121,8 +126,6 @@ class QcorreApp(App[None]):
         self.backup_reader = backup_reader or _read_backups
         self.history_reader = history_reader or read_history
         self.refresh_seconds = refresh_seconds
-        self.register_theme(QCORRE_THEME)
-        self.theme = QCORRE_THEME.name
 
     def get_css_variables(self) -> dict[str, str]:
         """Añade las variables propias (``$qc-*``) a las del tema.
@@ -130,7 +133,12 @@ class QcorreApp(App[None]):
         El CSS se parsea antes de que el tema quede activo, así que las
         variables propias deben existir siempre, sea cual sea el tema.
         """
-        return {**QCORRE_THEME.variables, **super().get_css_variables()}
+        return {**theme.css_variables(theme.current), **super().get_css_variables()}
+
+    def use_theme(self, name: str) -> None:
+        """Activa un tema: la paleta de Python y el tema de Textual (CSS)."""
+        theme.use(name)
+        self.theme = f"qcorre-{name}"
 
     def compose(self) -> ComposeResult:
         yield Header(id="header", demo=self.demo)
@@ -154,6 +162,7 @@ class QcorreApp(App[None]):
             "toggle_history",
             "help",
             "focus_panel",
+            "toggle_theme",
         }
     )
 
@@ -199,7 +208,16 @@ class QcorreApp(App[None]):
         snapshot = event.worker.result
         if isinstance(snapshot, Snapshot):
             self.query_one(ProjectsPanel).show_snapshot(snapshot, time.time())
-            self.query_one(Header).set_counts(len(snapshot.projects), snapshot.process_count)
+            orphans = sum(
+                dev.is_orphan
+                for dev in (
+                    *(d for p in snapshot.projects for d in p.processes),
+                    *snapshot.unassigned,
+                )
+            )
+            self.query_one(Header).set_counts(
+                len(snapshot.projects), snapshot.process_count, orphans
+            )
             # Con cada refresco se relee también el repo que se está mirando.
             self._load_git()
 
@@ -563,6 +581,11 @@ class QcorreApp(App[None]):
     def action_toggle_language(self) -> None:
         """Alterna entre español e inglés y repinta los textos."""
         i18n.set_language(i18n.next_language())
+        self.refresh_texts()
+
+    def action_toggle_theme(self) -> None:
+        """Alterna entre el tema oscuro y el claro, y repinta todo."""
+        self.use_theme(theme.next_theme())
         self.refresh_texts()
 
     def refresh_texts(self) -> None:

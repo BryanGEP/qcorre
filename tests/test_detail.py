@@ -147,6 +147,6 @@ async def test_el_pie_nombra_las_teclas_con_texto_simple():
         await settle(app, pilot)
         await pilot.press("down")  # un proceso: el pie ofrece ver su detalle
         await pilot.pause()
-        hints = str(app.query_one(HintBar).render())
+        hints = " ".join(str(app.query_one(HintBar).render()).split())
         assert "enter detalle" in hints and "k matar" in hints
         assert "⇥" not in hints and "⏎" not in hints

@@ -128,6 +128,7 @@ qcorre ruta/al/proyecto   # igual, fijando otro proyecto
 qcorre --demo             # datos simulados: prueba todo sin tocar nada real
 qcorre --lang en          # fuerza el idioma (es / en)
 qcorre --orphan-hours 8   # marca como huérfano lo que lleve más de 8 horas
+qcorre --theme light     # tema claro (o define QCORRE_THEME=light)
 ```
 
 > **Pruébalo sin riesgo:** `qcorre --demo` abre la interfaz completa sobre
@@ -152,6 +153,7 @@ qcorre --orphan-hours 8   # marca como huérfano lo que lleve más de 8 horas
 | `h` | Alternar entre el estado y el historial |
 | `a` | Ver todos los archivos con cambios |
 | `i` | Cambiar de idioma |
+| `t` | Cambiar de tema (oscuro / claro) |
 | `?` | Ayuda |
 | `q` | Salir |
 

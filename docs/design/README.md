@@ -57,3 +57,10 @@ Capturas de la v0.1.0 en [`auditoria/`](auditoria/).
 2. **`design/tema-amigable`:** el tema nuevo oscuro y claro (`--theme` y una
    tecla para cambiarlo), el pie con teclas dibujadas, los chips de la cabecera
    y "Últimos commits" bajo el mapa.
+
+## Estado
+
+- PR 1 (`design/mejoras-base`): integrado.
+- PR 2 (`design/tema-amigable`): paletas en `src/qcorre/ui/theme.py`. Los colores
+  se leen del tema al pintar, nunca en constantes de importación: así `t` repinta
+  todo. `tests/test_theme.py` comprueba el contraste AA de las dos paletas.

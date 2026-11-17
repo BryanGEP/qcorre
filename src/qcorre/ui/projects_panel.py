@@ -148,7 +148,12 @@ class ProjectsPanel(Panel):
             return
 
         lines = self._build_lines(snapshot)
-        signature = (i18n.get_language(), tuple((row.key, text.plain) for row, text in lines))
+        # El tema también cuenta: con otro tema el texto es igual pero los colores no.
+        signature = (
+            i18n.get_language(),
+            theme.current,
+            tuple((row.key, text.plain) for row, text in lines),
+        )
         if signature == self._signature:
             return
         self._signature = signature

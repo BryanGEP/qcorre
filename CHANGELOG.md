@@ -6,6 +6,17 @@ Todos los cambios notables de qcorre se anotan aquí. El formato sigue
 
 ## [Sin publicar]
 
+### Añadido
+
+- Tema nuevo, oscuro y claro: se elige con `--theme dark|light` (o la variable
+  `QCORRE_THEME`) y se cambia en caliente con `t`. Todos los textos cumplen el
+  contraste AA en los dos.
+- Cabecera con chips de resumen: proyectos, procesos, huérfanos (solo si hay) e
+  idioma.
+- Pie con las teclas dibujadas.
+- "Últimos commits" bajo el mapa, en la vista Estado del panel de git.
+- Los números de las frases de git van destacados con el color de lo que cuentan.
+
 ### Cambiado
 
 - Mejor contraste: el gris de los textos secundarios cumple el mínimo AA (4.5:1).
@@ -19,6 +30,8 @@ Todos los cambios notables de qcorre se anotan aquí. El formato sigue
 - Los diálogos usan un solo estilo para los encabezados y las teclas.
 - El panel de git ya no repite la rama, que está en su borde.
 - Los estados vacíos y los errores de git sugieren qué hacer.
+- El panel de git se repinta cuando cambia su ancho real, así que el mapa y
+  las listas ya no se parten al aparecer la barra de desplazamiento.
 
 ## [0.1.0] - 2026-11-17
 

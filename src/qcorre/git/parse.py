@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from qcorre.git.history import Commit
+
 
 class ChangeKind(str, Enum):
     """Qué le pasó a un archivo, en términos que entiende cualquiera."""
@@ -70,6 +72,7 @@ class RepoStatus:
     remote_url: str | None = None  # dirección del remoto (sin credenciales)
     head_subject: str | None = None  # primera línea del mensaje del último commit
     has_parent: bool = False  # el último commit tiene uno anterior (se puede deshacer)
+    recent: tuple[Commit, ...] = ()  # últimos commits de la rama, del más nuevo al más viejo
     last_sync: float | None = None  # último contacto con el remoto (fetch, pull o push)
 
     # ── Rama ────────────────────────────────────────────────────

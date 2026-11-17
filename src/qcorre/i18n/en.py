@@ -5,6 +5,7 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "app.tagline": "what's running on your machine?",
     "status.projects": {"one": "{n} project", "other": "{n} projects"},
     "status.processes": {"one": "{n} process", "other": "{n} processes"},
+    "status.orphans": {"one": "{n} orphan", "other": "{n} orphans"},
     # Panel de proyectos
     "panel.projects": "Projects",
     "projects.scanning": "Looking for processes…",
@@ -92,6 +93,7 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "git.sync.to_push": {"one": "{n} commit to push", "other": "{n} commits to push"},
     "git.sync.to_pull": {"one": "{n} commit to pull", "other": "{n} commits to pull"},
     "git.sync.nothing": "nothing to push or pull",
+    "git.recent": "Latest commits",
     "git.fetch.when": "As of the last contact with the remote, {time} ago.",
     "git.fetch.never": "There has been no contact with the remote from this machine yet.",
     "map.local": "Your machine",
@@ -477,6 +479,7 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "help.history": "toggle between the status and the history (branch graph)",
     "help.files": "see every changed file, or just the first ones",
     "help.language": "switch language (Spanish / English)",
+    "help.theme": "switch theme (dark / light)",
     "help.help": "show this help",
     "help.quit": "quit",
     "help.note.preview": (

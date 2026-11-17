@@ -5,6 +5,7 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "app.tagline": "¿qué corre en tu compu?",
     "status.projects": {"one": "{n} proyecto", "other": "{n} proyectos"},
     "status.processes": {"one": "{n} proceso", "other": "{n} procesos"},
+    "status.orphans": {"one": "{n} huérfano", "other": "{n} huérfanos"},
     # Panel de proyectos
     "panel.projects": "Proyectos",
     "projects.scanning": "Buscando procesos…",
@@ -92,6 +93,7 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "git.sync.to_push": {"one": "{n} commit sin subir", "other": "{n} commits sin subir"},
     "git.sync.to_pull": {"one": "{n} commit sin bajar", "other": "{n} commits sin bajar"},
     "git.sync.nothing": "nada por subir ni por bajar",
+    "git.recent": "Últimos commits",
     "git.fetch.when": "Según el último contacto con el remoto, hace {time}.",
     "git.fetch.never": "Aún no ha habido contacto con el remoto desde esta compu.",
     "map.local": "Tu compu",
@@ -481,6 +483,7 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "help.history": "alternar entre el estado y el historial (gráfico de ramas)",
     "help.files": "ver todos los archivos con cambios, o solo los primeros",
     "help.language": "cambiar el idioma (español / inglés)",
+    "help.theme": "cambiar de tema (oscuro / claro)",
     "help.help": "mostrar esta ayuda",
     "help.quit": "salir",
     "help.note.preview": (

@@ -16,6 +16,9 @@ from qcorre.git.runner import GitError, GitRunner
 # Cuántos commits se muestran como máximo.
 DEFAULT_LIMIT = 300
 
+# Cuántos se muestran en "Últimos commits" (vista Estado).
+RECENT_LIMIT = 5
+
 # Separadores que no pueden aparecer en los datos de un commit.
 _FIELD = "\x1f"
 _RECORD = "\x1e"
@@ -129,6 +132,26 @@ def parse_log(output: str) -> list[Commit]:
             )
         )
     return commits
+
+
+def recent_commits(git: GitRunner, limit: int = RECENT_LIMIT) -> tuple[Commit, ...]:
+    """Los últimos commits de la rama actual, del más nuevo al más viejo.
+
+    Sigue solo el primer padre de cada commit: es la línea de la rama, sin los
+    commits que entraron con cada merge. Es una consulta ligera (``-n``), apta
+    para hacerse en cada refresco. Devuelve ``()`` si aún no hay commits.
+    """
+    result = git.run(
+        "log",
+        "--first-parent",
+        "--decorate=full",
+        f"--max-count={limit}",
+        f"--format={_FORMAT}",
+        "HEAD",
+    )
+    if not result.ok:
+        return ()
+    return tuple(parse_log(result.stdout))
 
 
 def read_history(

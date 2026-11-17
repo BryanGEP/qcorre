@@ -6,6 +6,7 @@ import re
 from dataclasses import replace
 from pathlib import Path
 
+from qcorre.git.history import recent_commits
 from qcorre.git.parse import RepoStatus, parse_status
 from qcorre.git.runner import GitRunner
 
@@ -41,14 +42,11 @@ def read_status(repo: str | Path, runner: GitRunner | None = None) -> RepoStatus
         if result.ok:
             remote_url = hide_credentials(result.stdout.strip()) or None
 
-    head_subject: str | None = None
-    has_parent = False
-    if status.has_commits:
-        result = git.run("log", "-2", "--format=%s")
-        if result.ok:
-            subjects = result.stdout.splitlines()
-            head_subject = subjects[0] if subjects else None
-            has_parent = len(subjects) > 1
+    # Una sola consulta da el último mensaje, si se puede deshacer y la lista
+    # de "Últimos commits".
+    recent = recent_commits(git) if status.has_commits else ()
+    head_subject = recent[0].subject if recent else None
+    has_parent = bool(recent and recent[0].parents)
 
     upstream = status.upstream if status.upstream and not status.upstream_gone else None
     return replace(
@@ -57,6 +55,7 @@ def read_status(repo: str | Path, runner: GitRunner | None = None) -> RepoStatus
         remote_url=remote_url,
         head_subject=head_subject,
         has_parent=has_parent,
+        recent=recent,
         last_sync=last_contact(git, upstream) if status.remotes else None,
     )
 
