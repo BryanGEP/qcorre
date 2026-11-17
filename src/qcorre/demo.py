@@ -14,6 +14,7 @@ memoria. No importa ni ``psutil`` ni ejecuta ``git``.
 from __future__ import annotations
 
 import hashlib
+import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -43,6 +44,10 @@ HOUR = 60 * MINUTE
 DAY = 24 * HOUR
 
 REMOTE = "origin"
+
+
+# La terminal desde la que "se lanzaron" los procesos de ejemplo.
+_SHELL = "pwsh" if os.name == "nt" else "zsh"
 
 
 def _pick(es: str, en: str) -> str:
@@ -404,7 +409,7 @@ class DemoWorld:
         kind: ProcessKind = ProcessKind.SERVER,
         reasons: tuple[OrphanReason, ...] = (),
         denied: bool = False,
-        parent: str | None = "zsh",
+        parent: str | None = _SHELL,
         extra: tuple[tuple[str, tuple[str, ...]], ...] = (),
     ) -> DevProcess:
         """Un proceso simulado; ``extra`` son sus procesos hijos (nombre, comando)."""
@@ -450,7 +455,16 @@ class DemoWorld:
         # Los nombres están pensados para que el proyecto principal quede arriba.
         api, web = self.root / "tienda-api", self.root / "tienda-web"
         blog = self.root / "web-personal"
-        python = str(api / ".venv" / "bin" / "python")
+        # Rutas y comandos con el aspecto del sistema donde corre la demo.
+        windows = os.name == "nt"
+        venv = api / ".venv"
+        python = str(venv / "Scripts" / "python.exe" if windows else venv / "bin" / "python")
+        npm = (
+            "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js"
+            if windows
+            else "/usr/local/lib/node_modules/npm/bin/npm-cli.js"
+        )
+        shell = ("cmd.exe", "/d", "/s", "/c", "vite") if windows else ("sh", "-c", "vite")
         self.projects["tienda-api"] = (
             ProjectRoot(api, has_git=True),
             [
@@ -482,8 +496,8 @@ class DemoWorld:
             [
                 self._process(
                     "node", "npm run dev → vite", 5173, age=41 * MINUTE, cwd=web,
-                    cmdline=("node", "/usr/local/lib/node_modules/npm/bin/npm-cli.js", "run", "dev"),
-                    extra=(("sh", ("sh", "-c", "vite")), ("node", ("node", vite))),
+                    cmdline=("node", npm, "run", "dev"),
+                    extra=((shell[0], shell), ("node", ("node", vite))),
                 ),
             ],
         )  # fmt: skip

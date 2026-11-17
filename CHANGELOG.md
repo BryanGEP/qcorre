@@ -39,3 +39,5 @@ Primera versión.
 - Interfaz en español e inglés, con detección del idioma del sistema.
 - Modo `--demo` con procesos y repos simulados.
 - Pantalla de ayuda (`?`).
+- El pie de atajos se reparte en más renglones cuando la terminal es angosta.
+- README en inglés (principal) y español, con GIF de demostración y capturas.

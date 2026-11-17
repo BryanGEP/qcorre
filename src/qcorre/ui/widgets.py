@@ -77,7 +77,14 @@ class Panel(Vertical):
 
 
 class HintBar(Static):
-    """Pie con los atajos de teclado disponibles, en una o más filas."""
+    """Pie con los atajos de teclado disponibles, en una o más filas.
+
+    Si una fila no cabe en el ancho de la terminal, sus atajos continúan en el
+    renglón siguiente: ninguno se queda cortado ni fuera de la pantalla.
+    """
+
+    # Separación entre un atajo y el siguiente.
+    GAP = 3
 
     def __init__(self, rows: list[list[tuple[str, str]]]) -> None:
         """``rows`` es una lista de filas; cada fila, pares (tecla, clave de traducción)."""
@@ -85,17 +92,61 @@ class HintBar(Static):
         self.rows = rows
 
     def on_mount(self) -> None:
-        self.styles.height = len(self.rows)
         self.update_texts()
 
+    def on_resize(self) -> None:
+        self.update_texts()
+
+    def lines(self, width: int) -> list[list[tuple[str, str]]]:
+        """Reparte los atajos en renglones de, como mucho, ``width`` columnas.
+
+        Devuelve, por renglón, pares (tecla ya dibujada, nombre traducido).
+        Cuando una fila no cabe se parte en renglones parejos, para no dejar
+        un atajo suelto en el último.
+        """
+        lines: list[list[tuple[str, str]]] = []
+        for row in self.rows:
+            items = [(KEY_GLYPHS.get(key, key), t(label_key)) for key, label_key in row]
+            sizes = [len(glyph) + 1 + len(label) for glyph, label in items]
+            # Cuántos renglones hacen falta como mínimo...
+            needed = len(self._fill(sizes, width))
+            # ...y el ancho más corto con el que siguen cabiendo en esos renglones.
+            limit = width
+            for candidate in range(max(sizes, default=0), width):
+                if len(self._fill(sizes, candidate)) <= needed:
+                    limit = candidate
+                    break
+            position = 0
+            for count in self._fill(sizes, limit):
+                lines.append(items[position : position + count])
+                position += count
+        return lines
+
+    def _fill(self, sizes: list[int], width: int) -> list[int]:
+        """Cuántos atajos caben en cada renglón de ``width`` columnas."""
+        counts: list[int] = []
+        used = 0
+        for size in sizes:
+            if counts and used + self.GAP + size <= width:
+                counts[-1] += 1
+                used += self.GAP + size
+            else:
+                counts.append(1)
+                used = size
+        return counts
+
     def update_texts(self) -> None:
+        # Antes del primer dibujo el ancho aún es cero: se asume que todo cabe.
+        width = self.content_size.width or 10_000
+        lines = self.lines(width)
         text = Text(no_wrap=True, overflow="ellipsis")
-        for row_index, row in enumerate(self.rows):
-            if row_index:
+        for line_index, line in enumerate(lines):
+            if line_index:
                 text.append("\n")
-            for index, (key, label_key) in enumerate(row):
+            for index, (glyph, label) in enumerate(line):
                 if index:
-                    text.append("   ")
-                text.append(KEY_GLYPHS.get(key, key), style=f"bold {theme.ACCENT}")
-                text.append(" " + t(label_key), style=theme.MUTED)
+                    text.append(" " * self.GAP)
+                text.append(glyph, style=f"bold {theme.ACCENT}")
+                text.append(" " + label, style=theme.MUTED)
+        self.styles.height = max(1, len(lines))
         self.update(text)

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "qcorre"
 dynamic = ["version"]
-description = "¿Qué corre en tu compu? Panel del desarrollador en la terminal: procesos por proyecto y git en lenguaje humano."
+description = "See what's running on your machine, grouped by project, and use git in plain language. A terminal dashboard for developers."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -55,6 +55,10 @@ path = "src/qcorre/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/qcorre"]
+
+[tool.hatch.build.targets.sdist]
+# El GIF, las capturas y el guion que los graba son para el repo, no para el paquete.
+exclude = ["/docs", "/scripts", "/.github", "/.claude"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

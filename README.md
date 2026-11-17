@@ -1,145 +1,191 @@
-# qcorre
+<h1 align="center">qcorre</h1>
 
-**¿Qué corre en tu compu?** Un panel del desarrollador para la terminal.
+<p align="center">
+  <strong>See what's running on your machine, grouped by project — and use git in plain language.</strong><br>
+  A terminal dashboard for developers. Works on Windows, macOS and Linux.
+</p>
 
-[English](README.en.md) · Español
+<p align="center">
+  <a href="https://github.com/BryanGEP/qcorre/actions/workflows/ci.yml"><img src="https://github.com/BryanGEP/qcorre/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/python-3.10%20%E2%80%93%203.14-3776ab?logo=python&logoColor=white" alt="Python 3.10 to 3.14">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Windows, macOS and Linux">
+</p>
 
-<!-- Cuando exista el GIF: ![qcorre en acción](docs/demo.gif) -->
+<p align="center">
+  English · <a href="README.es.md">Español</a>
+</p>
 
-```
-▍qcorre  ¿qué corre en tu compu?                          3 proyectos · 9 procesos · ES
-╭─ Proyectos ──────────────────────────╮╭─ tienda-api · feature/pagos ─────────────────╮
-│ ▼ tienda-api  4  ⚠                   ││ Estado   Historial     h cambia de vista     │
-│    ● postgres      :5432  2h 15m     ││                                              │
-│    ● redis-server  :6379  2h 15m     ││ Estás en la rama feature/pagos               │
-│    ● uvicorn       :8000  2h 14m     ││                                              │
-│    ⚠ celery               3d 4h      ││ Tienes 3 archivos con cambios sin guardar    │
-│      ╰ lleva 3 días · su padre ya…   ││ en un commit y 2 archivos nuevos.            │
-│ ▼ tienda-web  1                      ││                                              │
-│    ● npm run dev → vite  :5173  41m  ││ ╭─ Tu compu ─────╮          ╭─ origin ──────╮│
-│ ▼ ⚠ Huérfanos  3                     ││ │ feature/pagos  │ ── 1 ↑ ─►│ feature/pagos ││
-│    ⚠ node server.js  :3000  3d 4h    ││ │ 3400d6e        │ ◄─────── │ 487c736       ││
-╰──────────────────────────────────────╯╰──────────────────────────────────────────────╯
- ↑↓ mover   tab panel   enter detalle   k matar   K matar todos   r refrescar
- c commit   p push   l pull   f actualizar   b ramas   u deshacer   h historial   ? ayuda
-```
+<p align="center">
+  <img src="docs/demo.gif" alt="qcorre demo: processes grouped by project, process details, killing a process, git status, committing, branches and history" width="900">
+</p>
 
-## Qué hace
+> *qcorre* is short for the Spanish **"¿qué corre?"** — "what's running?".
 
-**Procesos por proyecto.** Detecta tus servidores, bases de datos y herramientas
-de desarrollo, con sus puertos, y los agrupa según el repo git (o la carpeta de
-proyecto) desde donde corren.
+## Why qcorre?
 
-- Un servidor y sus procesos hijos se muestran como una sola fila
-  (`npm run dev → vite`).
-- Marca los **huérfanos**: procesos sin proyecto, que llevan más de un día
-  corriendo o cuyo proceso padre ya cerró.
-- Mata un proceso o todos los de un proyecto, siempre con una confirmación que
-  lista exactamente qué se va a cerrar.
+- **"What is still using port 3000?"** Dev servers, databases and watchers pile
+  up across projects. qcorre lists them by project, with their ports, so you can
+  see at a glance what belongs where.
+- **Forgotten processes eat ports and memory for days.** qcorre flags the
+  orphans — no project, running for too long, or left behind by a closed
+  terminal — and lets you kill them safely.
+- **Git status reads like a riddle.** qcorre says it in plain words ("You have
+  3 files with changes not saved in a commit") and draws where your machine
+  stands against the remote.
+- **Fear of breaking something.** Every action shows what will happen and the
+  exact git command before it runs, and risky ones make a backup first.
 
-**Git en lenguaje humano**, para el proyecto seleccionado.
+## Features
 
-- **Estado explicado:** "Tienes 3 archivos con cambios sin guardar en un commit".
-- **Mapa tu compu ↔ remoto:** cuántos commits tienes sin subir y sin bajar.
-- **Acciones con vista previa:** commit, push, pull, actualizar del remoto,
-  ramas y deshacer. Antes de cada una ves qué va a pasar y el comando git
-  exacto. Nada se ejecuta sin confirmar.
-- **Red de seguridad:** antes de una acción riesgosa se guarda un respaldo
-  (en `refs/qcorre/backup/`) al que puedes volver.
-- **Historial** como gráfico de ramas con colores.
+### Processes grouped by project
 
-La interfaz está en español e inglés (tecla `i`).
+<p align="center">
+  <img src="docs/screenshots/processes.png" alt="Projects panel listing processes with their ports and uptime, and orphans flagged" width="800">
+</p>
 
-## Instalación
+- Finds servers, databases and dev tools, with their **ports** and **uptime**,
+  and groups them by the git repo or project folder they run from.
+- A server and its children are **one row** — `npm run dev → vite` instead of
+  three unrelated processes.
+- **Orphans** are flagged with the reason: no project, running for more than a
+  day, or their parent has exited.
+- `enter` shows the **full command**, folder, PID, parent and start time.
+- `k` kills a process and `K` every process of a project — always behind a
+  confirmation that lists exactly what will be closed.
 
-Necesitas Python 3.10 o superior y `git` instalado. Funciona en Windows, macOS
-y Linux.
+### Git status in plain language
 
-qcorre todavía no está publicado en PyPI. Mientras tanto, se instala desde el
-repositorio:
+<p align="center">
+  <img src="docs/screenshots/git-status.png" alt="Git panel explaining the changes in plain language, with a map between your machine and the remote" width="800">
+</p>
+
+- **Explained status:** which branch you are on and what is not saved in a
+  commit yet.
+- **Your machine ↔ remote map:** how many commits you have to push and to pull,
+  and how fresh that information is.
+- Files that look like **secrets** (`.env`, `*.pem`, `id_rsa`…) are marked.
+
+### Actions with a preview and a safety net
+
+<p align="center">
+  <img src="docs/screenshots/commit.png" alt="Commit dialog listing the files, warning about a .env file and showing the exact git commands" width="800">
+</p>
+
+- **Commit, push, pull, fetch, branches and undo**, each with a preview of what
+  will happen and the **exact git command**. Nothing runs without confirming.
+- The commit dialog lists every file going in and **warns about secrets**.
+- **Branches:** switch, create, follow a remote-only branch, or delete a merged
+  branch whose remote is gone.
+- **Undo:** the last commit (keeping its changes), your unsaved changes, or go
+  back to a backup.
+- Before a risky action, a **backup** is saved under `refs/qcorre/backup/`.
+
+### History as a branch graph
+
+<p align="center">
+  <img src="docs/screenshots/history.png" alt="Commit history drawn as a coloured branch graph with branch labels" width="800">
+</p>
+
+- One line per commit: graph, hash, branches and tags, message and age.
+- Each line of work gets its own lane and colour; merges and forks are drawn
+  with curves.
+
+The interface is available in **English and Spanish** (key `i`).
+
+## Installation
+
+You need **Python 3.10+** and **git**.
+
+qcorre isn't on PyPI yet, so install it straight from GitHub:
 
 ```bash
+# with pipx
 pipx install git+https://github.com/BryanGEP/qcorre
-# o, sin instalar nada de forma permanente:
+
+# or run it once with uv, without installing anything permanently
 uvx --from git+https://github.com/BryanGEP/qcorre qcorre
 ```
 
-Cuando esté en PyPI bastará con `pipx install qcorre` o `uvx qcorre`.
+Once it is published, `pipx install qcorre` or `uvx qcorre` will be enough.
 
-## Uso
+## Usage
 
 ```bash
-qcorre                    # abre el panel; el proyecto de la carpeta actual siempre aparece
-qcorre ruta/al/proyecto   # igual, fijando otro proyecto
-qcorre --demo             # datos simulados: prueba todo sin tocar nada real
-qcorre --lang en          # fuerza el idioma (es / en)
-qcorre --orphan-hours 8   # marca como huérfano lo que lleve más de 8 horas
+qcorre                    # open the dashboard; the current folder's project is always listed
+qcorre path/to/project    # same, pinning another project
+qcorre --demo             # simulated data: try everything without touching anything real
+qcorre --lang es          # force the language (en / es)
+qcorre --orphan-hours 8   # flag as orphan anything running for more than 8 hours
 ```
 
-`qcorre --demo` abre la interfaz completa sobre procesos y repos de mentira que
-responden a tus acciones. Es la forma más rápida de conocerlo.
+> **Try it risk-free:** `qcorre --demo` opens the full interface over fake
+> processes and repos that react to what you do. The GIF above was recorded
+> with it.
 
-### Atajos
+### Keys
 
-| Tecla | Qué hace |
+| Key | What it does |
 |---|---|
-| `↑` `↓` | Moverse por proyectos y procesos |
-| `tab` | Cambiar de panel |
-| `enter` | Detalle del proceso (comando completo, carpeta, PID, padre) |
-| `k` / `K` | Matar el proceso / todos los del proyecto |
-| `r` | Refrescar ahora (también se refresca solo cada 3 s) |
-| `c` | Guardar los cambios en un commit |
-| `p` / `l` | Subir (push) / bajar (pull) |
-| `f` | Actualizar del remoto (fetch) |
-| `b` | Ramas: cambiar, crear (`n`) o borrar una ya mergeada (`d`) |
-| `u` | Deshacer: el último commit, tus cambios, o volver a un respaldo |
-| `h` | Alternar entre el estado y el historial |
-| `a` | Ver todos los archivos con cambios |
-| `i` | Cambiar de idioma |
-| `?` | Ayuda |
-| `q` | Salir |
+| `↑` `↓` | Move through projects and processes |
+| `tab` | Switch panel |
+| `enter` | Process details (full command, folder, PID, parent) |
+| `k` / `K` | Kill the process / every process of the project |
+| `r` | Refresh now (it also refreshes on its own every 3 s) |
+| `c` | Save the changes in a commit |
+| `p` / `l` | Push / pull |
+| `f` | Update from the remote (fetch) |
+| `b` | Branches: switch, create (`n`) or delete a merged one (`d`) |
+| `u` | Undo: the last commit, your changes, or go back to a backup |
+| `h` | Toggle between status and history |
+| `a` | See every changed file |
+| `i` | Switch language |
+| `?` | Help |
+| `q` | Quit |
 
-## Cómo decide a qué proyecto pertenece un proceso
+### How a process is matched to a project
 
-Por orden: la carpeta de trabajo del proceso, las rutas de su línea de comandos,
-la ruta de su ejecutable y, si nada de eso sirve, el proyecto de su proceso
-padre. Desde esa carpeta sube buscando un `.git`; si no hay repo, vale la
-carpeta más cercana con un archivo de proyecto (`package.json`,
-`pyproject.toml`, `Cargo.toml`, `go.mod`…).
+In order: the process's working directory, the paths on its command line, the
+path of its executable and, failing all that, its parent process's project. From
+that folder qcorre walks up looking for a `.git`; with no repo, the nearest
+folder holding a project file counts (`package.json`, `pyproject.toml`,
+`Cargo.toml`, `go.mod`…).
 
-Los procesos que el sistema no deja leer (muy común en Windows con procesos de
-servicio) se muestran igual, marcados como **sin permiso**.
+Processes the system won't let qcorre read — common on Windows with service
+processes — are still listed, marked **no access**.
 
-## Qué hace y qué no hace con tu repo
+## What it does and doesn't do to your repo
 
-qcorre usa el `git` de tu sistema, así que cualquier cosa que haga es algo que
-podrías teclear tú. Está pensado para no dar sustos:
+qcorre runs your system's `git`, so anything it does is something you could type
+yourself. It is built not to surprise you.
 
-- El **pull** solo avanza si no hay que mezclar nada (`--ff-only`).
-- **Nunca** hace push forzado ni `git branch -D`.
-- **Deshacer un commit** conserva sus cambios, y solo se ofrece si ese commit
-  aún no está en el remoto.
-- El **commit** guarda todos los cambios (`git add -A`), te lista los archivos
-  que entran y te avisa si alguno parece contener secretos (`.env`, `*.pem`,
-  `id_rsa`…).
-- Nunca te pide contraseñas: si el remoto necesita que inicies sesión, te lo
-  dice y lo haces desde tu terminal.
-- Mientras solo miras, no toca nada: ni la red ni el índice del repo.
+| It does | It never does |
+|---|---|
+| Show the exact command before running it | Run anything without your confirmation |
+| Pull only when no merge is needed (`--ff-only`) | Merge, rebase or resolve conflicts for you |
+| Push your commits | Force-push |
+| Delete a merged branch with `git branch -d` | Delete unmerged work (`git branch -D`) |
+| Undo a commit that is still only on your machine, keeping its changes | Rewrite commits that are already on the remote |
+| Back up before pull, undo, discard, restore and switching with changes | Ask for your password — if the remote needs a sign-in, it tells you |
+| Read your repo without touching the index or the network | Fetch behind your back: contacting the remote is always an explicit action |
 
-Los respaldos son referencias normales de git. Puedes verlos con
-`git for-each-ref refs/qcorre/backup` y borrarlos con `git update-ref -d <ref>`.
+Backups are ordinary git refs. List them with
+`git for-each-ref refs/qcorre/backup` and delete one with
+`git update-ref -d <ref>`.
 
-### Limitaciones
+## Limitations
 
-- No resuelve conflictos, ni hace merge o rebase. Si tu rama y el remoto se
-  separaron, te lo explica y te deja resolverlo a tu manera.
-- El respaldo de los cambios sin guardar no incluye archivos nuevos que git
-  todavía no sigue.
-- Los contenedores Docker aparecen como procesos de Docker, sin proyecto.
-- Una rama mergeada con *squash* en GitHub no cuenta como mergeada para git, así
-  que no se ofrece borrarla.
+- No merge, rebase or conflict resolution. If your branch and the remote have
+  diverged, qcorre explains it and leaves the fix to you.
+- The backup of unsaved changes doesn't include new files git isn't tracking yet.
+- Commit saves every change (`git add -A`); there is no per-file staging.
+- Docker containers show up as Docker processes, with no project.
+- A branch that was *squash*-merged on GitHub doesn't count as merged for git,
+  so deleting it isn't offered.
 
-## Desarrollo
+## Contributing
+
+Issues and pull requests are welcome.
 
 ```bash
 git clone https://github.com/BryanGEP/qcorre
@@ -148,29 +194,41 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 
-pytest             # tests (lógica, git contra repos temporales e interfaz)
-ruff check .       # estilo
-qcorre --demo      # la interfaz con datos simulados
+pytest             # logic, git against temporary repos, and the interface
+ruff check .       # lint
+qcorre --demo      # the interface with simulated data
 ```
 
-El código está separado en capas para poder testear la lógica sin la interfaz:
+A few conventions:
 
-| Carpeta | Responsabilidad |
-|---|---|
-| `src/qcorre/collectors/` | Leer procesos y puertos del sistema (psutil) y cerrarlos |
-| `src/qcorre/projects/` | Decidir el proyecto de cada proceso y agruparlos (lógica pura) |
-| `src/qcorre/git/` | Leer el repo, preparar y ejecutar acciones, respaldos, historial |
-| `src/qcorre/ui/` | La interfaz (Textual). Solo presentación |
-| `src/qcorre/i18n/` | Textos en español e inglés |
-| `src/qcorre/demo.py` | El mundo simulado de `--demo` |
+- **Layers.** Logic is kept apart from the interface so it can be tested without
+  a terminal:
 
-Para grabar el GIF de presentación, abre `qcorre --demo` en una terminal de
-unas 120×34 columnas: los datos simulados responden a las acciones (matar un
-proceso, commit, push, ramas, historial), así que el recorrido se puede repetir
-las veces que haga falta sin tocar nada real.
+  | Folder | Responsibility |
+  |---|---|
+  | `src/qcorre/collectors/` | Read processes and ports from the system (psutil) and close them |
+  | `src/qcorre/projects/` | Decide each process's project and group them (pure logic) |
+  | `src/qcorre/git/` | Read the repo, prepare and run actions, backups, history |
+  | `src/qcorre/ui/` | The interface (Textual). Presentation only |
+  | `src/qcorre/i18n/` | English and Spanish texts |
+  | `src/qcorre/demo.py` | The simulated world behind `--demo` |
 
-Los cambios se describen en [CHANGELOG.md](CHANGELOG.md).
+- **Two languages.** Every user-facing text goes in both `i18n/en.py` and
+  `i18n/es.py`. Code comments and docstrings are written in Spanish.
+- **Tests first-class.** New behaviour comes with tests; `pytest` and
+  `ruff check .` must pass.
+- **Commits** follow [Conventional Commits](https://www.conventionalcommits.org/).
 
-## Licencia
+To refresh the GIF and the screenshots after a visual change:
+
+```bash
+pip install pillow
+python scripts/record_demo.py             # English
+python scripts/record_demo.py --lang es   # Spanish
+```
+
+Changes are listed in the [changelog](CHANGELOG.md) (in Spanish).
+
+## License
 
 [MIT](LICENSE)

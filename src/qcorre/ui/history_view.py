@@ -31,14 +31,17 @@ MAX_GRAPH_WIDTH = 24
 MAX_REFS = 3
 
 # Lo mínimo que debe quedar para el mensaje del commit.
-MIN_SUBJECT = 16
+MIN_SUBJECT = 20
+
+# Por debajo de este ancho no vale la pena mostrar las etiquetas recortadas.
+MIN_REFS = 10
 
 # Ancho máximo de la columna del autor, y desde qué ancho de panel se muestra.
 MAX_AUTHOR = 16
 AUTHOR_FROM_WIDTH = 96
 
 # Desde qué ancho de panel se muestra la columna de antigüedad.
-AGE_FROM_WIDTH = 56
+AGE_FROM_WIDTH = 50
 
 REF_STYLES = {
     RefKind.HEAD: f"bold {theme.SUCCESS}",
@@ -113,14 +116,29 @@ def commit_line(row: GraphRow, now: float, columns: Columns) -> Text:
     line = graph_text(row, columns.graph)
     line.append(" " + commit.short_oid + " ", style=theme.MUTED)
     start = len(line.plain)
-    room = columns.width - start - columns.right
+    right = columns.right
+    room = columns.width - start - right
 
-    # Si las etiquetas no dejan sitio al mensaje, se muestran menos ("+N").
+    # El mensaje manda. Si las etiquetas no le dejan sitio, por orden:
+    # 1) se muestran menos etiquetas ("+N");
     refs = refs_text(commit.refs)
     for limit in range(MAX_REFS - 1, 0, -1):
         if len(refs.plain) + 1 + MIN_SUBJECT <= room:
             break
         refs = refs_text(commit.refs, limit=limit)
+    # 2) esta fila cede sus columnas de la derecha (es más útil leer qué se
+    #    hizo que cuándo);
+    if refs.plain and len(refs.plain) + 1 + MIN_SUBJECT > room and right:
+        room += right
+        right = 0
+    # 3) la etiqueta que queda se recorta, o se omite si ya no diría nada.
+    budget = room - MIN_SUBJECT - 1
+    if refs.plain and len(refs.plain) > budget:
+        if budget >= MIN_REFS:
+            refs.truncate(budget - 2)
+            refs.append("…)", style=theme.MUTED)
+        else:
+            refs = Text()
     if refs.plain:
         line.append_text(refs)
         line.append(" ")
@@ -137,12 +155,12 @@ def commit_line(row: GraphRow, now: float, columns: Columns) -> Text:
         subject = subject[: room - 1] + "…"
     line.append(subject, style=style)
 
-    # Columnas de la derecha, alineadas en todas las filas.
-    if columns.right:
+    # Columnas de la derecha, alineadas en todas las filas que las llevan.
+    if right:
         line.append(" " * (room - len(subject)))
-    if columns.age:
+    if right and columns.age:
         line.append("  " + age_text(commit, now).rjust(columns.age), style=theme.MUTED)
-    if columns.author:
+    if right and columns.author:
         author = commit.author
         if len(author) > columns.author:
             author = author[: columns.author - 1] + "…"

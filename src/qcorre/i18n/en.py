@@ -20,7 +20,7 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "orphan.days": {"one": "running for {n} day", "other": "running for {n} days"},
     "orphan.hours": {"one": "running for {n} hour", "other": "running for {n} hours"},
     "orphan.minutes": {"one": "running for {n} minute", "other": "running for {n} minutes"},
-    "orphan.parent_gone": "its parent has exited",
+    "orphan.parent_gone": "parent exited",
     # Panel de git
     "panel.git": "Git",
     "git.empty": "Select a project to see its\ngit status in plain language.",
