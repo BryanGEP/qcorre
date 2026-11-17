@@ -46,10 +46,16 @@ def status_body(
     """Todo el contenido del panel de git para un repo.
 
     Con ``expanded`` se listan todos los archivos en vez de los primeros.
+
+    En qué rama estás ya lo dice el borde del panel ("tienda-api · main"):
+    aquí solo se explica cuando hay algo raro que contar (sin rama, o una
+    rama que aún no tiene commits).
     """
     text = Text()
-    text.append_text(_styled(explain.explain_branch(status), status.branch or status.short_oid))
-    text.append("\n\n")
+    if status.detached or not status.has_commits:
+        branch = explain.explain_branch(status)
+        text.append_text(_styled(branch, status.branch or status.short_oid))
+        text.append("\n\n")
 
     text.append_text(_styled(explain.explain_changes(status)))
     for note in explain.explain_notes(status):
@@ -108,13 +114,14 @@ def file_list(
         if change.orig_path:
             path = f"{change.orig_path} → {change.path}"
         risky = change.kind is not ChangeKind.DELETED and is_sensitive(change.path)
-        room = max(8, width - (8 if risky else 5))
+        tag = "  " + t("git.files.secret") if risky else ""
+        room = max(8, width - 5 - len(tag))
         if len(path) > room:
             path = "…" + path[-(room - 1) :]
         text.append(f"  {mark}  ", style=f"bold {color}")
-        text.append(path, style=theme.WARNING if risky else theme.FOREGROUND)
+        text.append(path, style=theme.FOREGROUND)
         if risky:
-            text.append("  ⚠", style=theme.WARNING)
+            text.append(tag, style=theme.WARNING)
     hidden = len(ordered) - len(shown)
     if hidden > 0:
         text.append("\n     " + t("git.files.more", n=hidden), style=theme.MUTED)

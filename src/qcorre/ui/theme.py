@@ -16,7 +16,7 @@ PANEL = "#171c26"
 
 # Texto y líneas.
 FOREGROUND = "#d7dde8"
-MUTED = "#6b7689"
+MUTED = "#8b93a3"  # 6.3:1 sobre el fondo (mínimo AA: 4.5:1)
 BORDER = "#262d3a"
 
 # Acento de la marca y colores de estado (solo para comunicar estado).

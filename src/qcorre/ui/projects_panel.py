@@ -18,12 +18,25 @@ from qcorre.ui import theme
 from qcorre.ui.format import orphan_notes, short_duration
 from qcorre.ui.widgets import Panel
 
-# Límites de la columna del nombre; lo que no cabe se corta con "…".
-_MIN_LABEL = 10
-_MAX_LABEL = 30
+# Mínimo de columnas para el nombre de un proceso; lo que no cabe se corta con "…".
+_MIN_LABEL = 8
 
-# Columnas que el árbol gasta en sangría antes de cada proceso.
-_INDENT = 5
+# Columnas que el árbol gasta antes de cada línea: el triángulo de las
+# cabeceras ("▼ ") y la sangría de los procesos y sus notas.
+_GROUP_PREFIX = 2
+_LEAF_PREFIX = 3
+
+# Se deja libre la última columna, que ocupa la barra de desplazamiento
+# cuando aparece: así las filas no se recortan al crecer la lista.
+_SCROLLBAR = 1
+
+# Separación entre columnas.
+_GAP = 2
+
+# Puntos de estado. Solo glifos de ancho fijo: el triángulo de aviso y
+# similares se dibujan como emoji en algunas terminales y desalinean.
+_DOT = "●"
+_EMPTY_DOT = "○"
 
 
 @dataclass(frozen=True)
@@ -194,33 +207,35 @@ class ProjectsPanel(Panel):
         self.post_message(self.Selected(self.selected))
 
     def _build_lines(self, snapshot: Snapshot) -> list[tuple[Row, Text]]:
+        """Las líneas del árbol, todas a lo ancho del panel.
+
+        Ocupar todo el ancho tiene dos efectos: la selección pinta la fila
+        entera, y los puertos, tiempos y conteos quedan alineados a la derecha
+        en columnas, como en una tabla.
+        """
         everyone = [d for p in snapshot.projects for d in p.processes] + list(snapshot.unassigned)
-        ports_width = max((len(_ports(d)) for d in everyone), default=0)
-        time_width = max((len(_time_text(d, self._now)) for d in everyone), default=0)
-        # Lo que queda para el nombre tras la sangría, la marca y las columnas.
-        available = self.content_size.width - _INDENT - 2 - 2 - ports_width - 2 - time_width
-        label_width = max((len(d.label) for d in everyone), default=0)
-        label_width = max(_MIN_LABEL, min(label_width, _MAX_LABEL, available))
+        width = max(_MIN_LABEL + 10, (self.content_size.width or 40) - _SCROLLBAR)
+        columns = _Columns(
+            group=width - _GROUP_PREFIX,
+            leaf=width - _LEAF_PREFIX,
+            ports=max((len(_ports(d)) for d in everyone), default=0),
+            time=max((len(_time_text(d, self._now)) for d in everyone), default=0),
+        )
 
         lines: list[tuple[Row, Text]] = []
 
         def add_processes(project: Project | None, processes: tuple[DevProcess, ...]) -> None:
             for dev in processes:
-                lines.append(
-                    (
-                        Row(project, dev),
-                        _process_line(dev, self._now, label_width, ports_width),
-                    )
-                )
-                note = _note_line(dev, self._now)
+                lines.append((Row(project, dev), _process_line(dev, self._now, columns)))
+                note = _note_line(dev, self._now, columns.leaf)
                 if note is not None:
                     lines.append((Row(project, dev, is_note=True), note))
 
         for project in snapshot.projects:
-            lines.append((Row(project), _project_line(project)))
+            lines.append((Row(project), _project_line(project, columns.group)))
             add_processes(project, project.processes)
         if snapshot.unassigned:
-            lines.append((Row(), _orphans_line(len(snapshot.unassigned))))
+            lines.append((Row(), _orphans_line(len(snapshot.unassigned), columns.group)))
             add_processes(None, snapshot.unassigned)
         return lines
 
@@ -231,53 +246,81 @@ class ProjectsPanel(Panel):
         self.post_message(self.Selected(event.node.data))
 
 
+@dataclass(frozen=True)
+class _Columns:
+    """Anchos de las líneas del árbol."""
+
+    group: int  # ancho de una cabecera de grupo
+    leaf: int  # ancho de la línea de un proceso o de una nota
+    ports: int  # columna de puertos
+    time: int  # columna del tiempo corriendo
+
+
 def _ports(dev: DevProcess) -> str:
     return " ".join(f":{port}" for port in dev.ports)
 
 
 def _is_flagged(dev: DevProcess) -> bool:
-    """¿Lleva la marca ⚠? (huérfano por algo más que no tener proyecto)."""
+    """¿Va en color de aviso? (huérfano por algo más que no tener proyecto)."""
     return any(r is not OrphanReason.NO_PROJECT for r in dev.orphan_reasons)
 
 
-def _project_line(project: Project) -> Text:
-    text = Text(no_wrap=True, overflow="ellipsis")
-    text.append(project.name, style=f"bold {theme.FOREGROUND}")
-    if project.processes:
-        text.append(f"  {len(project.processes)}", style=theme.MUTED)
-    else:
-        text.append(f"  {t('tag.idle')}", style=f"italic {theme.MUTED}")
+def _fit(text: Text, width: int, right: Text | None = None) -> Text:
+    """Ajusta ``text`` a ``width`` columnas, con ``right`` pegado al borde derecho."""
+    right = right or Text()
+    room = width - len(right.plain)
+    if len(text.plain) > room:
+        text.truncate(max(1, room - 1))
+        text.append("…", style=theme.MUTED)
+    text.append(" " * (room - len(text.plain)))
+    text.append_text(right)
+    return text
+
+
+def _project_line(project: Project, width: int) -> Text:
+    """Cabecera de un proyecto: nombre a la izquierda, número de procesos a la derecha."""
+    text = Text(no_wrap=True)
+    text.append(project.name, style=f"bold {theme.ACCENT}")
     if not project.has_git:
         text.append(f"  {t('tag.no_git')}", style=f"italic {theme.MUTED}")
+    if not project.processes:
+        text.append(f"  {t('tag.idle')}", style=f"italic {theme.MUTED}")
     if any(_is_flagged(d) for d in project.processes):
-        text.append("  ⚠", style=theme.WARNING)
-    return text
+        # Si el proyecto está plegado, este punto es la única pista del aviso.
+        text.append(f"  {_DOT}", style=theme.WARNING)
+    count = Text(str(len(project.processes)), style=theme.MUTED) if project.processes else None
+    return _fit(text, width, count)
 
 
-def _orphans_line(count: int) -> Text:
-    text = Text(no_wrap=True, overflow="ellipsis")
-    text.append("⚠ " + t("group.orphans"), style=f"bold {theme.WARNING}")
-    text.append(f"  {count}", style=theme.MUTED)
-    return text
+def _orphans_line(count: int, width: int) -> Text:
+    # El estilo va en el tramo, no en el Text: si no, el conteo lo heredaría.
+    text = Text(no_wrap=True)
+    text.append(t("group.orphans"), style=f"bold {theme.WARNING}")
+    return _fit(text, width, Text(str(count), style=theme.MUTED))
 
 
-def _process_line(dev: DevProcess, now: float, label_width: int, ports_width: int) -> Text:
-    text = Text(no_wrap=True, overflow="ellipsis")
-    if _is_flagged(dev):
-        text.append("⚠ ", style=theme.WARNING)
-    elif dev.access_denied:
-        text.append("○ ", style=theme.MUTED)
+def _process_line(dev: DevProcess, now: float, columns: _Columns) -> Text:
+    """``● nombre ............ :8000   2h 14m``: puertos y tiempo a la derecha.
+
+    El estado lo da solo el color del punto: verde (bien), ámbar (huérfano) o
+    un círculo vacío (el sistema no deja leerlo).
+    """
+    text = Text(no_wrap=True)
+    if dev.access_denied:
+        text.append(f"{_EMPTY_DOT} ", style=theme.MUTED)
+    elif _is_flagged(dev):
+        text.append(f"{_DOT} ", style=theme.WARNING)
     else:
-        text.append("● ", style=theme.SUCCESS)
+        text.append(f"{_DOT} ", style=theme.SUCCESS)
+    text.append(dev.label, style=theme.FOREGROUND)
 
-    label = dev.label
-    if len(label) > label_width:
-        label = label[: label_width - 1] + "…"
-    text.append(label.ljust(label_width), style=theme.FOREGROUND)
-    text.append("  " + _ports(dev).ljust(ports_width), style=theme.SECONDARY)
-
-    text.append("  " + _time_text(dev, now), style=theme.MUTED)
-    return text
+    right = Text(no_wrap=True)
+    if columns.ports:
+        # Una fila sin puerto deja la columna en blanco, sin color de fondo.
+        right.append(" " * _GAP + _ports(dev).rjust(columns.ports), style=theme.SECONDARY)
+    if columns.time:
+        right.append(" " * _GAP + _time_text(dev, now).rjust(columns.time), style=theme.MUTED)
+    return _fit(text, columns.leaf, right)
 
 
 def _time_text(dev: DevProcess, now: float) -> str:
@@ -287,19 +330,15 @@ def _time_text(dev: DevProcess, now: float) -> str:
     return ""
 
 
-def _note_line(dev: DevProcess, now: float) -> Text | None:
-    """Línea extra bajo el proceso: por qué es huérfano y/o "sin permiso"."""
-    pieces = [(note, theme.WARNING) for note in orphan_notes(dev, now)]
+def _note_line(dev: DevProcess, now: float, width: int) -> Text | None:
+    """Línea extra bajo el proceso: por qué es huérfano y/o "sin permiso".
+
+    Va en gris tenue: es un detalle. El aviso ya lo da el color del punto.
+    """
+    pieces = orphan_notes(dev, now)
     if dev.access_denied:
-        pieces.append((t("tag.denied"), f"italic {theme.MUTED}"))
+        pieces.append(t("tag.denied"))
     if not pieces:
         return None
-    text = Text(no_wrap=True, overflow="ellipsis")
-    # Alineada bajo la marca del proceso: sangrarla más le quitaría sitio al
-    # texto, que en paneles angostos ya va justo.
-    text.append("╰ ", style=pieces[0][1])
-    for index, (piece, style) in enumerate(pieces):
-        if index:
-            text.append(" · ", style=theme.MUTED)
-        text.append(piece, style=style)
-    return text
+    text = Text("╰ " + " · ".join(pieces), style=theme.MUTED, no_wrap=True)
+    return _fit(text, width)

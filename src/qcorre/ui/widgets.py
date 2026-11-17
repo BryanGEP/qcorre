@@ -15,6 +15,7 @@ from textual.widgets import Static
 from qcorre import i18n
 from qcorre.i18n import t
 from qcorre.ui import theme
+from qcorre.ui.styles import KEY_GAP, Key, key_width, keys_line
 
 # Cómo se dibuja cada tecla en el pie.
 # Solo se usan símbolos que se ven bien en cualquier terminal: las flechas
@@ -77,19 +78,19 @@ class Panel(Vertical):
 
 
 class HintBar(Static):
-    """Pie con los atajos de teclado disponibles, en una o más filas.
+    """Pie de una sola línea con los atajos que sirven *ahora*.
 
-    Si una fila no cabe en el ancho de la terminal, sus atajos continúan en el
-    renglón siguiente: ninguno se queda cortado ni fuera de la pantalla.
+    La app le pasa dos listas: los atajos del contexto (según el panel con el
+    foco y lo que hay seleccionado), por orden de importancia, y los que van
+    siempre al final (ayuda y salir). Si no caben, se quitan atajos del
+    contexto empezando por el último: los fijos no se pierden nunca, y la
+    ayuda (``?``) lista todos los demás.
     """
 
-    # Separación entre un atajo y el siguiente.
-    GAP = 3
-
-    def __init__(self, rows: list[list[tuple[str, str]]]) -> None:
-        """``rows`` es una lista de filas; cada fila, pares (tecla, clave de traducción)."""
+    def __init__(self) -> None:
         super().__init__()
-        self.rows = rows
+        self.hints: list[tuple[str, str]] = []
+        self.tail: list[tuple[str, str]] = []
 
     def on_mount(self) -> None:
         self.update_texts()
@@ -97,56 +98,26 @@ class HintBar(Static):
     def on_resize(self) -> None:
         self.update_texts()
 
-    def lines(self, width: int) -> list[list[tuple[str, str]]]:
-        """Reparte los atajos en renglones de, como mucho, ``width`` columnas.
+    def set_hints(self, hints: list[tuple[str, str]], tail: list[tuple[str, str]]) -> None:
+        """Cambia los atajos mostrados: pares (tecla, clave de traducción)."""
+        if (hints, tail) != (self.hints, self.tail):
+            self.hints, self.tail = list(hints), list(tail)
+            self.update_texts()
 
-        Devuelve, por renglón, pares (tecla ya dibujada, nombre traducido).
-        Cuando una fila no cabe se parte en renglones parejos, para no dejar
-        un atajo suelto en el último.
-        """
-        lines: list[list[tuple[str, str]]] = []
-        for row in self.rows:
-            items = [(KEY_GLYPHS.get(key, key), t(label_key)) for key, label_key in row]
-            sizes = [len(glyph) + 1 + len(label) for glyph, label in items]
-            # Cuántos renglones hacen falta como mínimo...
-            needed = len(self._fill(sizes, width))
-            # ...y el ancho más corto con el que siguen cabiendo en esos renglones.
-            limit = width
-            for candidate in range(max(sizes, default=0), width):
-                if len(self._fill(sizes, candidate)) <= needed:
-                    limit = candidate
-                    break
-            position = 0
-            for count in self._fill(sizes, limit):
-                lines.append(items[position : position + count])
-                position += count
-        return lines
+    def visible(self, width: int) -> list[Key]:
+        """Los atajos que caben en ``width`` columnas."""
+        main = [Key(KEY_GLYPHS.get(k, k), t(label)) for k, label in self.hints]
+        tail = [Key(KEY_GLYPHS.get(k, k), t(label)) for k, label in self.tail]
 
-    def _fill(self, sizes: list[int], width: int) -> list[int]:
-        """Cuántos atajos caben en cada renglón de ``width`` columnas."""
-        counts: list[int] = []
-        used = 0
-        for size in sizes:
-            if counts and used + self.GAP + size <= width:
-                counts[-1] += 1
-                used += self.GAP + size
-            else:
-                counts.append(1)
-                used = size
-        return counts
+        def total(items: list[Key]) -> int:
+            gaps = len(KEY_GAP) * max(0, len(items) - 1)
+            return sum(key_width(item) for item in items) + gaps
+
+        while main and total(main + tail) > width:
+            main.pop()
+        return main + tail
 
     def update_texts(self) -> None:
         # Antes del primer dibujo el ancho aún es cero: se asume que todo cabe.
         width = self.content_size.width or 10_000
-        lines = self.lines(width)
-        text = Text(no_wrap=True, overflow="ellipsis")
-        for line_index, line in enumerate(lines):
-            if line_index:
-                text.append("\n")
-            for index, (glyph, label) in enumerate(line):
-                if index:
-                    text.append(" " * self.GAP)
-                text.append(glyph, style=f"bold {theme.ACCENT}")
-                text.append(" " + label, style=theme.MUTED)
-        self.styles.height = max(1, len(lines))
-        self.update(text)
+        self.update(keys_line(self.visible(width)))

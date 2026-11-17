@@ -83,35 +83,16 @@ class QcorreApp(App[None]):
         Binding("a", "toggle_files", show=False),
         Binding("h", "toggle_history", show=False),
         Binding("question_mark", "help", show=False),
+        Binding("1", "focus_panel('projects')", show=False),
+        Binding("2", "focus_panel('git')", show=False),
         Binding("r", "refresh", show=False),
         Binding("i", "toggle_language", show=False),
         Binding("q", "quit", show=False),
     ]
 
-    # Atajos que se muestran en el pie, por filas: (tecla, clave de traducción).
-    # Arriba, moverse y procesos; abajo, git y la app.
-    HINTS = [
-        [
-            ("updown", "hint.move"),
-            ("tab", "hint.panel"),
-            ("enter", "hint.details"),
-            ("k", "hint.kill"),
-            ("K", "hint.kill_all"),
-            ("r", "hint.refresh"),
-        ],
-        [
-            ("c", "hint.commit"),
-            ("p", "hint.push"),
-            ("l", "hint.pull"),
-            ("f", "hint.fetch"),
-            ("b", "hint.branches"),
-            ("u", "hint.undo"),
-            ("h", "hint.history"),
-            ("i", "hint.language"),
-            ("?", "hint.help"),
-            ("q", "hint.quit"),
-        ],
-    ]
+    # Atajos que van siempre al final del pie: (tecla, clave de traducción).
+    # El resto del pie cambia según el contexto (ver ``footer_hints``).
+    FOOTER_TAIL = [("?", "hint.help"), ("q", "hint.quit")]
 
     def __init__(
         self,
@@ -156,7 +137,7 @@ class QcorreApp(App[None]):
         with Horizontal(id="body"):
             yield ProjectsPanel(id="projects")
             yield GitPanel(id="git")
-        yield HintBar(self.HINTS)
+        yield HintBar()
 
     # Atajos de la app que quedan en pausa mientras hay un diálogo abierto.
     _PAUSED_IN_DIALOGS = frozenset(
@@ -172,6 +153,7 @@ class QcorreApp(App[None]):
             "toggle_files",
             "toggle_history",
             "help",
+            "focus_panel",
         }
     )
 
@@ -232,6 +214,61 @@ class QcorreApp(App[None]):
         current = panel.project.path if panel.project else None
         if current != previous:
             self._load_git()
+        self.update_footer()
+
+    # ── Pie contextual y foco ───────────────────────────────────
+
+    def on_descendant_focus(self) -> None:
+        self.update_footer()
+
+    def action_focus_panel(self, panel: str) -> None:
+        """Salta al panel de proyectos (1) o al de git (2)."""
+        if panel == "projects":
+            self.query_one(ProjectsPanel).tree.focus()
+        else:
+            self.query_one("#git-scroll").focus()
+
+    def footer_hints(self) -> list[tuple[str, str]]:
+        """Los atajos útiles ahora mismo, del más al menos importante."""
+        git = self.query_one(GitPanel)
+        has_repo = git.has_repo
+        focused = self.focused
+        if focused is not None and git in focused.ancestors_with_self:
+            hints = [("updown", "hint.scroll")]
+            if has_repo:
+                toggle = "hint.status" if git.mode == HISTORY else "hint.history"
+                hints += [
+                    ("h", toggle),
+                    ("c", "hint.commit"),
+                    ("p", "hint.push"),
+                    ("l", "hint.pull"),
+                    ("b", "hint.branches"),
+                    ("u", "hint.undo"),
+                    ("f", "hint.fetch"),
+                ]
+            return [*hints, ("1", "hint.to_projects")]
+
+        row = self.query_one(ProjectsPanel).selected
+        if row is None:
+            return [("r", "hint.refresh")]
+        hints = [("updown", "hint.move")]
+        if row.process is not None:
+            hints += [("enter", "hint.details"), ("k", "hint.kill")]
+        else:
+            hints.append(("enter", "hint.collapse"))
+            processes = row.project.processes if row.project else self._orphans()
+            if processes:
+                hints.append(("K", "hint.kill_all"))
+        if has_repo:
+            hints += [("c", "hint.commit"), ("p", "hint.push"), ("2", "hint.to_git")]
+        return hints
+
+    def _orphans(self) -> tuple[DevProcess, ...]:
+        snapshot = self.query_one(ProjectsPanel).snapshot
+        return snapshot.unassigned if snapshot else ()
+
+    def update_footer(self) -> None:
+        self.query_one(HintBar).set_hints(self.footer_hints(), self.FOOTER_TAIL)
 
     # ── Git ─────────────────────────────────────────────────────
 
@@ -279,6 +316,7 @@ class QcorreApp(App[None]):
         panel.toggle_history()
         if panel.mode == HISTORY:
             self._load_history()
+        self.update_footer()
 
     # ── Acciones de git ─────────────────────────────────────────
 

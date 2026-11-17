@@ -18,8 +18,8 @@ from textual.widgets import OptionList, Static
 from textual.widgets.option_list import Option
 
 from qcorre.i18n import t
-from qcorre.ui import theme
 from qcorre.ui.dialog import DialogScreen
+from qcorre.ui.styles import Key, keys_line
 
 
 @dataclass(frozen=True)
@@ -83,17 +83,10 @@ class PickerScreen(DialogScreen[PickerResult | None]):
             options.highlighted = first
 
     def _keys(self) -> Text:
-        line = Text(justify="right")
-        line.append("enter", style=f"bold {theme.ACCENT}")
-        line.append(" " + t(self.select_key), style=theme.FOREGROUND)
-        for key in self.keys:
-            line.append("     ")
-            line.append(key.key, style=f"bold {theme.ACCENT}")
-            line.append(" " + t(key.label_key), style=theme.FOREGROUND)
-        line.append("     ")
-        line.append("esc", style=f"bold {theme.ACCENT}")
-        line.append(" " + t("picker.close"), style=theme.MUTED)
-        return line
+        items = [Key("enter", t(self.select_key), primary=True)]
+        items += [Key(key.key, t(key.label_key)) for key in self.keys]
+        items.append(Key("esc", t("picker.close")))
+        return keys_line(items)
 
     @property
     def highlighted_id(self) -> str | None:

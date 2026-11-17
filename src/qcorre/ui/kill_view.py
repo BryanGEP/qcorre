@@ -11,6 +11,7 @@ from qcorre.collectors.killer import KillResult, Victim
 from qcorre.i18n import t
 from qcorre.models import DevProcess, ProcessKind
 from qcorre.ui import theme
+from qcorre.ui.styles import heading
 
 # Una fila del panel y los procesos del sistema que se cerrarían con ella.
 KillGroup = tuple[DevProcess, list[Victim]]
@@ -24,7 +25,8 @@ def kill_body(groups: Sequence[KillGroup], *, windows: bool | None = None) -> Te
     ports = sorted({port for dev, _ in groups for port in dev.ports})
 
     text = Text()
-    text.append(t("confirm.what") + "\n", style=f"bold {theme.FOREGROUND}")
+    text.append_text(heading(t("confirm.what")))
+    text.append("\n")
     bullets = [t("kill.summary", n=total)]
     if ports:
         bullets.append(t("kill.ports", n=len(ports), ports=" ".join(f":{p}" for p in ports)))

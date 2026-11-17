@@ -10,26 +10,36 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "projects.scanning": "Looking for processes…",
     "projects.empty": (
         "No dev processes are running.\n\n"
-        "Start a server or a database\nand it will show up here."
+        "Start a server or a database\nand it will show up here.\n\n"
+        "Want to see what it looks like? Try\nqcorre --demo"
     ),
     "group.orphans": "Orphans",
     "tag.no_git": "no git",
     "tag.idle": "nothing running",
     "tag.denied": "no access",
     # Motivos de huérfano
-    "orphan.days": {"one": "running for {n} day", "other": "running for {n} days"},
-    "orphan.hours": {"one": "running for {n} hour", "other": "running for {n} hours"},
-    "orphan.minutes": {"one": "running for {n} minute", "other": "running for {n} minutes"},
+    "orphan.days": {"one": "up {n} day", "other": "up {n} days"},
+    "orphan.hours": {"one": "up {n} hour", "other": "up {n} hours"},
+    "orphan.minutes": {"one": "up {n} minute", "other": "up {n} minutes"},
     "orphan.parent_gone": "parent exited",
     # Panel de git
     "panel.git": "Git",
-    "git.empty": "Select a project to see its\ngit status in plain language.",
+    "git.empty": (
+        "The selected project's git shows up here.\n\n"
+        "qcorre always lists the project of the folder\nyou open it from."
+    ),
     "git.no_repo": "This project is not a git repository.",
     "git.orphans": "These processes don't belong to any project.",
     "git.loading": "Reading the repository…",
     "git.error.not_installed": "Couldn't find git on this machine.\nInstall it to see this section.",
     "git.error.timeout": "Git took too long to respond.",
     "git.error.failed": "Git answered with an error:",
+    "git.error.hint.retry": "Press r to try again.",
+    "git.error.hint.install": "Get it from https://git-scm.com and reopen qcorre.",
+    "git.error.hint.not_repo": (
+        "This folder is no longer a git repository (was .git moved or deleted?).\n"
+        "Press r to try again."
+    ),
     # Git: en qué rama estás
     "git.branch.on": "You are on branch {branch}",
     "git.branch.unborn": "You are on branch {branch}, which has no commits yet",
@@ -63,6 +73,7 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     },
     "git.files.less": "key a to see fewer",
     "list.and": " and ",
+    "git.files.secret": "secret?",
     # Git: tu compu y el remoto
     "git.sync.no_remote": "This repo has no remote: it only exists on your machine.",
     "git.sync.unborn": "Once you make your first commit you can push it to the remote.",
@@ -452,6 +463,7 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "help.section.app": "Application",
     "help.move": "move through the list of projects and processes",
     "help.panel": "switch panel (in the git panel, the arrows scroll it)",
+    "help.jump": "jump straight to the projects panel (1) or the git panel (2)",
     "help.enter": "see a process's details, or collapse a project",
     "help.refresh": "look for processes and re-read git right now",
     "help.kill": "kill the selected process (asks for confirmation)",
@@ -489,8 +501,11 @@ MESSAGES: dict[str, str | dict[str, str]] = {
     "hint.move": "move",
     "hint.kill": "kill",
     "hint.kill_all": "kill all",
-    "hint.panel": "panel",
+    "hint.scroll": "scroll",
+    "hint.status": "status",
+    "hint.collapse": "fold",
+    "hint.to_git": "go to git",
+    "hint.to_projects": "go to projects",
     "hint.refresh": "refresh",
-    "hint.language": "language",
     "hint.quit": "quit",
 }

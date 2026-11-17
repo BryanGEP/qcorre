@@ -140,6 +140,7 @@ qcorre --orphan-hours 8   # marca como huérfano lo que lleve más de 8 horas
 |---|---|
 | `↑` `↓` | Moverse por proyectos y procesos |
 | `tab` | Cambiar de panel |
+| `1` / `2` | Ir al panel de proyectos / de git |
 | `enter` | Detalle del proceso (comando completo, carpeta, PID, padre) |
 | `k` / `K` | Matar el proceso / todos los del proyecto |
 | `r` | Refrescar ahora (también se refresca solo cada 3 s) |

@@ -135,6 +135,7 @@ qcorre --orphan-hours 8   # flag as orphan anything running for more than 8 hour
 |---|---|
 | `↑` `↓` | Move through projects and processes |
 | `tab` | Switch panel |
+| `1` / `2` | Jump to the projects / git panel |
 | `enter` | Process details (full command, folder, PID, parent) |
 | `k` / `K` | Kill the process / every process of the project |
 | `r` | Refresh now (it also refreshes on its own every 3 s) |

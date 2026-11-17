@@ -4,6 +4,22 @@ Todos los cambios notables de qcorre se anotan aquí. El formato sigue
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones,
 [SemVer](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Cambiado
+
+- Mejor contraste: el gris de los textos secundarios cumple el mínimo AA (4.5:1).
+- El pie ocupa una sola línea y muestra solo los atajos que sirven en ese
+  momento, según el panel activo y lo seleccionado.
+- `1` y `2` saltan al panel de proyectos y al de git.
+- Panel de proyectos: puertos, tiempos y conteos alineados a la derecha, la
+  selección ocupa toda la fila y las notas de huérfano van en gris (el aviso lo
+  da el color del punto). Notas más cortas.
+- Sin glifos que algunas terminales dibujan como emoji (`⚠`).
+- Los diálogos usan un solo estilo para los encabezados y las teclas.
+- El panel de git ya no repite la rama, que está en su borde.
+- Los estados vacíos y los errores de git sugieren qué hacer.
+
 ## [0.1.0] - 2026-11-17
 
 Primera versión publicada en PyPI: `pipx install qcorre` o `uvx qcorre`.

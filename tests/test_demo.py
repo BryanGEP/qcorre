@@ -353,7 +353,11 @@ async def test_la_ayuda_lista_todos_los_atajos(world):
         assert app.screen.query_one("#dialog").border_title == "Ayuda de qcorre"
         text = str(app.screen.query_one("#dialog-body").query_one("Static").render())
         # Cada atajo de la app aparece en la ayuda.
-        documented = {line.split()[0] for line in text.splitlines() if line.startswith("  ")}
+        # La columna de teclas puede llevar varias ("1 2"): se toman todas.
+        documented = set()
+        for line in text.splitlines():
+            if line.startswith("  "):
+                documented.update(line[2:].split("  ")[0].split())
         bound = {b.key for b in QcorreApp.BINDINGS} - {"question_mark"} | {"?"}
         assert bound <= documented | {"tab", "enter"}
         assert "push forzado" in text

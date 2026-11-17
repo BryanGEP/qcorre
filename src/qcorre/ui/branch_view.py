@@ -12,6 +12,7 @@ from qcorre.i18n import t
 from qcorre.ui import theme
 from qcorre.ui.format import short_duration
 from qcorre.ui.picker import Choice
+from qcorre.ui.styles import heading
 
 # Prefijos de los ids de las opciones.
 LOCAL = "local:"
@@ -56,7 +57,7 @@ def find_branch(branches: BranchList, choice_id: str) -> Branch | None:
 
 
 def _heading(label: str) -> Choice:
-    return Choice(Text(label, style=f"bold {theme.MUTED}"))
+    return Choice(heading(label))
 
 
 def _local_line(branch: Branch, width: int) -> Text:

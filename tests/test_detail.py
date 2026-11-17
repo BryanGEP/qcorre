@@ -77,7 +77,7 @@ def test_el_detalle_muestra_todo_lo_necesario_para_identificar_el_proceso():
     assert "7500" in text  # PID
     assert "ya cerró (era el pid 22268)" in text  # padre
     assert "(hace 1m)" in text  # inicio
-    assert "su padre ya cerró" in text  # por qué es huérfano
+    assert "sin padre" in text  # por qué es huérfano
     assert "Incluye 2 procesos" in text and "33924" in text
 
 
@@ -145,7 +145,8 @@ async def test_el_pie_nombra_las_teclas_con_texto_simple():
     app = make_app()
     async with app.run_test(size=(120, 30)) as pilot:
         await settle(app, pilot)
+        await pilot.press("down")  # un proceso: el pie ofrece ver su detalle
+        await pilot.pause()
         hints = str(app.query_one(HintBar).render())
-        assert "tab panel" in hints
-        assert "enter detalle" in hints
+        assert "enter detalle" in hints and "k matar" in hints
         assert "⇥" not in hints and "⏎" not in hints
