@@ -45,14 +45,72 @@ def find_marked(marker: str) -> list[psutil.Process]:
     return found
 
 
-def kill_marked(marker: str) -> None:
-    procs = find_marked(marker)
+def is_alive(proc: psutil.Process) -> bool:
+    """¿El proceso sigue vivo de verdad? (un zombi ya murió: solo falta recogerlo)."""
+    try:
+        return proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE
+    except psutil.Error:
+        return False
+
+
+def with_descendants(procs: list[psutil.Process]) -> list[psutil.Process]:
+    """Los procesos dados y todo lo que cuelga de ellos, sin repetir."""
+    tree: dict[int, psutil.Process] = {}
     for proc in procs:
+        if not is_alive(proc):
+            continue
+        tree[proc.pid] = proc
         try:
-            proc.kill()
+            for child in proc.children(recursive=True):
+                tree.setdefault(child.pid, child)
         except psutil.Error:
-            pass
-    psutil.wait_procs(procs, timeout=5)
+            continue
+    return list(tree.values())
+
+
+def kill_marked(
+    marker: str, known: tuple[psutil.Process, ...] = (), timeout: float = 10.0
+) -> list[psutil.Process]:
+    """Mata todos los procesos de prueba y devuelve los que sigan vivos.
+
+    Un proceso tarda un instante en morir, y mientras muere puede no dejarse
+    leer (por eso una sola pasada no basta: en macOS llegó a escaparse uno).
+    Así que se repite, hasta ``timeout`` segundos:
+
+    1. buscar el árbol completo: los marcados, los ``known`` (procesos que el
+       test ya tenía identificados) y todos sus descendientes;
+    2. pedirles terminar y esperar un momento;
+    3. forzar a los que sigan vivos y esperar otro momento;
+    4. volver a buscar, tras una pausa.
+
+    Termina en cuanto dos búsquedas seguidas no encuentran nada. Si se agota
+    el tiempo, devuelve lo que quede vivo para que el test falle con razón.
+    """
+    deadline = time.monotonic() + timeout
+    clean_rounds = 0
+    while True:
+        tree = with_descendants(find_marked(marker) + list(known))
+        if not tree:
+            clean_rounds += 1
+            if clean_rounds >= 2:
+                return []
+        else:
+            clean_rounds = 0
+            for proc in tree:
+                try:
+                    proc.terminate()
+                except psutil.Error:
+                    pass
+            _, stubborn = psutil.wait_procs(tree, timeout=1.5)
+            for proc in stubborn:
+                try:
+                    proc.kill()
+                except psutil.Error:
+                    pass
+            psutil.wait_procs(stubborn, timeout=1.5)
+        if time.monotonic() >= deadline:
+            return with_descendants(find_marked(marker) + list(known))
+        time.sleep(0.2)
 
 
 def as_dev(pid: int, create_time: float | None = None) -> DevProcess:
@@ -89,15 +147,20 @@ def family():
     """Proceso padre con un hijo; se limpia pase lo que pase."""
     marker = f"qcorre-test-{uuid.uuid4().hex}"
     parent = subprocess.Popen([sys.executable, "-c", parent_code(marker)])
+    known: list[psutil.Process] = []
     try:
+        known.append(psutil.Process(parent.pid))
         children = wait_for_family(parent.pid, marker)
+        known.extend(children)
         yield parent, children
     finally:
-        kill_marked(marker)
-        if parent.poll() is None:
-            parent.kill()
-        parent.wait(timeout=5)
-        assert find_marked(marker) == [], "quedaron procesos de prueba vivos"
+        survivors = kill_marked(marker, tuple(known))
+        # Se recoge al proceso lanzado por el test para que no quede como zombi.
+        try:
+            parent.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            pass
+        assert survivors == [], f"quedaron procesos de prueba vivos: {survivors}"
 
 
 def test_preview_incluye_al_lider_y_a_sus_descendientes(family):
@@ -149,3 +212,94 @@ def test_nunca_se_mata_a_si_mismo():
     assert killer.preview(as_dev(os.getpid())) == []
     me = Victim(os.getpid(), "python", psutil.Process().create_time())
     assert killer.kill([me]) == KillResult()
+
+
+# ── La propia limpieza de los tests ─────────────────────────────
+
+
+def spawn_marked(code: str) -> tuple[str, subprocess.Popen]:
+    marker = f"qcorre-test-{uuid.uuid4().hex}"
+    return marker, subprocess.Popen([sys.executable, "-c", f"{code}  # {marker}"])
+
+
+def wait_until_marked(marker: str) -> None:
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        if find_marked(marker):
+            return
+        time.sleep(0.05)
+    raise AssertionError("el proceso de prueba no arrancó")
+
+
+def test_la_limpieza_no_deja_nada_y_no_afirma_antes_de_tiempo():
+    marker, proc = spawn_marked(f"import time; time.sleep({LIFETIME})")
+    try:
+        wait_until_marked(marker)
+        assert kill_marked(marker) == []
+        # Tras limpiar, una búsqueda inmediata tampoco encuentra nada vivo.
+        assert [p for p in find_marked(marker) if is_alive(p)] == []
+    finally:
+        proc.kill()
+        proc.wait(timeout=10)
+
+
+def test_la_limpieza_fuerza_a_un_proceso_que_ignora_la_peticion_de_terminar():
+    code = (
+        "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+        f"time.sleep({LIFETIME})"
+    )
+    marker, proc = spawn_marked(code)
+    try:
+        wait_until_marked(marker)
+        time.sleep(0.3)  # que alcance a instalar su manejador de señales
+        assert kill_marked(marker) == []
+        proc.wait(timeout=10)
+        assert proc.returncode is not None
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=10)
+
+
+def test_la_limpieza_alcanza_a_los_hijos_aunque_no_lleven_la_marca():
+    # El hijo no lleva la marca en su línea de comandos: solo se le encuentra
+    # por ser descendiente de un proceso marcado.
+    code = (
+        "import subprocess, sys, time; "
+        f"subprocess.Popen([sys.executable, '-c', 'import time; time.sleep({LIFETIME})']); "
+        f"time.sleep({LIFETIME})"
+    )
+    marker, proc = spawn_marked(code)
+    try:
+        wait_until_marked(marker)
+        deadline = time.monotonic() + 15
+        children: list[psutil.Process] = []
+        while time.monotonic() < deadline and len(children) < 1:
+            children = [
+                c
+                for c in psutil.Process(proc.pid).children(recursive=True)
+                if not any(marker in arg for arg in _cmdline(c))
+            ]
+            time.sleep(0.05)
+        assert children, "el proceso de prueba no lanzó a su hijo"
+        assert kill_marked(marker) == []
+        assert not any(is_alive(child) for child in children)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+        proc.wait(timeout=10)
+
+
+def test_si_un_proceso_sobrevive_la_limpieza_lo_delata(monkeypatch):
+    # Si de verdad quedara algo vivo, la limpieza debe decirlo, no callarlo.
+    marker, proc = spawn_marked(f"import time; time.sleep({LIFETIME})")
+    try:
+        wait_until_marked(marker)
+        monkeypatch.setattr(psutil.Process, "terminate", lambda self: None)
+        monkeypatch.setattr(psutil.Process, "kill", lambda self: None)
+        survivors = kill_marked(marker, timeout=1.0)
+        assert [p.pid for p in survivors if any(marker in a for a in _cmdline(p))]
+    finally:
+        monkeypatch.undo()
+        assert kill_marked(marker) == []
+        proc.wait(timeout=10)

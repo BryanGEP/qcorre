@@ -269,3 +269,58 @@ async def test_si_el_proceso_seleccionado_muere_el_cursor_se_queda_en_su_proyect
         await pilot.press("r")
         await settle(app, pilot)
         assert panel.selected is not None and panel.selected.project.name == "tienda-web"
+
+
+# ── Pie de atajos adaptable ─────────────────────────────────────
+
+
+@pytest.mark.parametrize("width", [60, 80, 96, 104, 120, 160])
+async def test_el_pie_nunca_corta_ni_esconde_un_atajo(width):
+    app = make_app()
+    async with app.run_test(size=(width, 30)) as pilot:
+        await settle(app, pilot)
+        bar = app.query_one(HintBar)
+        lines = str(bar.render()).splitlines()
+        assert bar.size.height == len(lines)
+        assert all(len(line) <= bar.content_size.width for line in lines), lines
+        text = " ".join(lines)
+        for _, label_key in [hint for row in QcorreApp.HINTS for hint in row]:
+            assert i18n.t(label_key) in text
+        # Ningún renglón se queda con un solo atajo mientras otro va lleno.
+        counts = [line.count("   ") + 1 for line in lines]
+        assert min(counts) >= 2 or len(lines) == 1, lines
+
+
+async def test_el_pie_ocupa_dos_filas_cuando_hay_ancho_de_sobra():
+    app = make_app()
+    async with app.run_test(size=(140, 30)) as pilot:
+        await settle(app, pilot)
+        assert app.query_one(HintBar).size.height == 2
+
+
+async def test_el_pie_se_reacomoda_al_cambiar_de_idioma_y_de_tamano():
+    app = make_app()
+    async with app.run_test(size=(108, 30)) as pilot:
+        await settle(app, pilot)
+        bar = app.query_one(HintBar)
+        spanish = bar.size.height
+        await pilot.press("i")  # en inglés los nombres son más cortos
+        await pilot.pause()
+        assert bar.size.height <= spanish
+        await pilot.resize_terminal(70, 30)
+        await pilot.pause()
+        assert bar.size.height > 2
+        assert all(len(line) <= bar.content_size.width for line in str(bar.render()).splitlines())
+
+
+async def test_la_razon_del_huerfano_cabe_entera_en_un_panel_angosto():
+    i18n.set_language("en")
+    app = make_app()
+    async with app.run_test(size=(108, 30)) as pilot:
+        await settle(app, pilot)
+        tree = app.query_one(ProjectsPanel).tree
+        note = next(line for line in tree_lines(app) if "running for 3 days" in line)
+        assert note == "╰ running for 3 days · parent exited"
+        # La sangría del árbol más la nota no superan el ancho visible del panel.
+        indent = tree.guide_depth + 1
+        assert indent + len(note) <= tree.size.width

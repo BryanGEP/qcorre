@@ -446,3 +446,25 @@ async def test_el_pie_incluye_el_historial():
         second = str(app.query_one(HintBar).render()).splitlines()[1]
         assert "h historial" in second
 
+
+
+def test_en_un_panel_angosto_el_mensaje_manda_sobre_etiquetas_y_fecha():
+    refs = (Ref(RefKind.HEAD, "feature/pagos"), Ref(RefKind.REMOTE, "origin/feature/pagos"))
+    newest = c("a", "b", subject="add payment webhooks", refs=refs)
+    plain = c("b", subject="validate negative amounts")
+    first, second = lines(History((newest, plain)), width=54)
+    # La fila con etiquetas cede su columna de antigüedad y recorta la etiqueta,
+    # pero el mensaje se lee entero.
+    assert "add payment webhooks" in first
+    assert "(HEAD → feature/" in first and "…)" in first
+    assert "origin/feature/pagos" not in first
+    assert not first.endswith("2h 00m")
+    # Las filas sin ese problema conservan su columna.
+    assert second.endswith("2h 00m")
+    assert len(first) <= 54 and len(second) <= 54
+
+
+def test_si_no_queda_sitio_ni_para_una_etiqueta_recortada_se_omite():
+    refs = (Ref(RefKind.HEAD, "feature/pagos"),)
+    (line,) = lines(History((c("a", subject="add payment webhooks", refs=refs),)), width=34)
+    assert "HEAD" not in line and "add payment webhooks" in line

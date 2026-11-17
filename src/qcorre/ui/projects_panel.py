@@ -295,7 +295,9 @@ def _note_line(dev: DevProcess, now: float) -> Text | None:
     if not pieces:
         return None
     text = Text(no_wrap=True, overflow="ellipsis")
-    text.append("  ╰ ", style=pieces[0][1])
+    # Alineada bajo la marca del proceso: sangrarla más le quitaría sitio al
+    # texto, que en paneles angostos ya va justo.
+    text.append("╰ ", style=pieces[0][1])
     for index, (piece, style) in enumerate(pieces):
         if index:
             text.append(" · ", style=theme.MUTED)
