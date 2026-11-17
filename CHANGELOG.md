@@ -4,9 +4,9 @@ Todos los cambios notables de qcorre se anotan aquí. El formato sigue
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones,
 [SemVer](https://semver.org/lang/es/).
 
-## [0.1.0] - sin publicar
+## [0.1.0] - 2026-11-17
 
-Primera versión.
+Primera versión publicada en PyPI: `pipx install qcorre` o `uvx qcorre`.
 
 ### Procesos
 
@@ -41,3 +41,5 @@ Primera versión.
 - Pantalla de ayuda (`?`).
 - El pie de atajos se reparte en más renglones cuando la terminal es angosta.
 - README en inglés (principal) y español, con GIF de demostración y capturas.
+
+[0.1.0]: https://github.com/BryanGEP/qcorre/releases/tag/v0.1.0

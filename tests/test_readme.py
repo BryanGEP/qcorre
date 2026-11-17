@@ -119,5 +119,7 @@ def test_las_opciones_de_la_linea_de_comandos_estan_documentadas(name):
 
 
 def test_el_paquete_usa_el_readme_principal():
+    # La descripción para PyPI se arma a partir de README.md (ver test_release.py).
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'readme = "README.md"' in pyproject
+    fragment = '[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]\npath = "README.md"'
+    assert fragment in pyproject

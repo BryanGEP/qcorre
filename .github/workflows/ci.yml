@@ -5,6 +5,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Lo llama release.yml antes de publicar.
+  workflow_call:
 
 # Si llega un commit nuevo a la misma rama, se cancela la corrida anterior.
 concurrency:
